@@ -83,3 +83,52 @@ fn main() {
 
     println!("{:?}", adam_spells);
 }
+
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    #[test]
+    fn test1() {
+        let wowlog_path = r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-040624_135724.txt";
+
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)
+            .from_path(wowlog_path)
+            .expect("Error loading wowlogs file.");
+
+
+        let mut seen = vec![
+            "ZONE_CHANGE", "MAP_CHANGE", "COMBATANT_INFO", "ENCOUNTER_START", "COMBAT_LOG_VERSION",
+            "SPELL_AURA_APPLIED", "SPELL_PERIODIC_HEAL", "SPELL_CAST_SUCCESS", "SPELL_AURA_REMOVED",
+            "SPELL_AURA_REFRESH", "SPELL_CAST_START", "SPELL_HEAL", "SPELL_ENERGIZE", "SPELL_SUMMON",
+            "SWING_DAMAGE", "SPELL_ABSORBED", "SPELL_MISSED", "SPELL_DAMAGE", "SWING_MISSED",
+            "SPELL_PERIODIC_ENERGIZE", "SPELL_CAST_FAILED", "SPELL_PERIODIC_DAMAGE",
+            "SPELL_EMPOWER_START", "SPELL_EMPOWER_END", "SPELL_PERIODIC_MISSED", "SPELL_DRAIN",
+            "UNIT_DIED", "PARTY_KILL", "SPELL_EMPOWER_INTERRUPT", "UNIT_DESTROYED", "ENCOUNTER_END",
+            "SPELL_AURA_BROKEN_SPELL", "SPELL_RESURRECT", "ENCHANT_REMOVED",
+        ];
+
+        for entry in reader.records()
+            .filter_map(|e| match e {
+                Ok(x) => { Some(x) }
+                Err(_) => { None }
+            })
+            .filter(|e| !seen.iter().any(|&s| e[0].contains(s)))
+            .take(100) {
+            println!("{:?}", entry)
+        }
+
+
+        // for entry in reader.records() {
+        //     let parsed = parse_line(&entry.expect("Error parsing entry."));
+        //     if parsed.is_err() {
+        //         println!("Error parsing entry, skipping. {:?}", parsed);
+        //         continue;
+        //     }
+        //
+        // }
+    }
+}

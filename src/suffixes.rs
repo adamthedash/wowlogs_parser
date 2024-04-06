@@ -11,32 +11,35 @@ pub enum Suffix {
     Heal(Heal),
     Aura(AuraSuffixes),
     Energize(Energize),
+    CastFailed(CastFailed),
 }
 
 impl Suffix {
     pub fn parse_record(line: &[&str], suffix_type: EventSuffix) -> Option<Self> {
         match suffix_type {
-            EventSuffix::DAMAGE => {
-                Some(Self::Damage(Damage::parse_record(line)))
-            }
-            EventSuffix::MISSED => {
-                Some(Self::Missed(Missed::parse_record(line)))
-            }
-            EventSuffix::HEAL => {
-                Some(Self::Heal(Heal::parse_record(line)))
-            }
+            EventSuffix::DAMAGE => Some(Self::Damage(Damage::parse_record(line))),
+
+            EventSuffix::MISSED => Some(Self::Missed(Missed::parse_record(line))),
+
+            EventSuffix::HEAL => Some(Self::Heal(Heal::parse_record(line))),
+
             EventSuffix::AURA_APPLIED |
             EventSuffix::AURA_APPLIED_DOSE |
             EventSuffix::AURA_REFRESH |
             EventSuffix::AURA_REMOVED |
-            EventSuffix::AURA_REMOVED_DOSE => { Some(Self::Aura(AuraSuffixes::parse_record(line))) }
+            EventSuffix::AURA_REMOVED_DOSE => Some(Self::Aura(AuraSuffixes::parse_record(line))),
+
             EventSuffix::CAST_SUCCESS |
             EventSuffix::CAST_START |
             EventSuffix::SUMMON |
             EventSuffix::CREATE |
-            EventSuffix::ABSORBED => { None }
-            EventSuffix::ENERGIZE => { Some(Self::Energize(Energize::parse_record(line))) }
-            EventSuffix::SPLIT => { Some(Self::Damage(Damage::parse_record(line))) }
+            EventSuffix::ABSORBED => None,
+
+            EventSuffix::ENERGIZE => Some(Self::Energize(Energize::parse_record(line))),
+
+            EventSuffix::SPLIT => Some(Self::Damage(Damage::parse_record(line))),
+
+            EventSuffix::CAST_FAILED => Some(Self::CastFailed(CastFailed::parse_record(line))),
 
             x => {
                 todo!("Suffix parsing not implemented: {:?}", x);
@@ -62,7 +65,6 @@ pub struct Damage {
 
 impl FromRecord for Damage {
     fn parse_record(line: &[&str]) -> Self {
-        // println!("{:?}", line);
         Self {
             amount: u64::from_str(line[0]).unwrap(),
             overkill: u64::from_str(line[1]).unwrap(),
@@ -104,12 +106,25 @@ pub struct Missed {
 
 impl FromRecord for Missed {
     fn parse_record(line: &[&str]) -> Self {
+        let miss_type = MissType::from_str(line[0]).unwrap();
+
+        // ABSORB has 3 extra parameters
+        let (amount_missed, unknown_quantity, critical) = match miss_type {
+            MissType::ABSORB => (
+                u64::from_str(line[2]).unwrap(),
+                u64::from_str(line[3]).unwrap(),
+                line[4] != "nil"
+            ),
+            _ => (0, 0, false)
+        };
+
+
         Self {
-            miss_type: MissType::from_str(line[0]).unwrap(),
+            miss_type,
             offhand: line[1] != "nil",
-            amount_missed: u64::from_str(line[2]).unwrap(),
-            unknown_quantity: u64::from_str(line[3]).unwrap(),
-            critical: line[4] != "nil",
+            amount_missed,
+            unknown_quantity,
+            critical,
         }
     }
 }
@@ -173,6 +188,21 @@ impl FromRecord for Energize {
             over_energize: f32::from_str(line[1]).unwrap(),
             power_type: u64::from_str(line[2]).unwrap(),
             max_power: u64::from_str(line[3]).unwrap(),
+        }
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct CastFailed {
+    fail_type: String
+}
+
+impl FromRecord for CastFailed {
+    fn parse_record(line: &[&str]) -> Self {
+        Self {
+            fail_type: line[0].to_string(),
         }
     }
 }
