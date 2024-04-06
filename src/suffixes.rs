@@ -12,6 +12,7 @@ pub enum Suffix {
     Aura(AuraSuffixes),
     Energize(Energize),
     CastFailed(CastFailed),
+    EmpowerEnd(EmpowerEnd),
 }
 
 impl Suffix {
@@ -33,6 +34,7 @@ impl Suffix {
             EventSuffix::CAST_START |
             EventSuffix::SUMMON |
             EventSuffix::CREATE |
+            EventSuffix::EMPOWER_START |
             EventSuffix::ABSORBED => None,
 
             EventSuffix::ENERGIZE => Some(Self::Energize(Energize::parse_record(line))),
@@ -41,9 +43,10 @@ impl Suffix {
 
             EventSuffix::CAST_FAILED => Some(Self::CastFailed(CastFailed::parse_record(line))),
 
+            EventSuffix::EMPOWER_END => Some(Self::EmpowerEnd(EmpowerEnd::parse_record(line))),
+
             x => {
-                todo!("Suffix parsing not implemented: {:?}", x);
-                None
+                todo!("Suffix parsing not implemented: {:?}", x)
             }
         }
     }
@@ -193,16 +196,28 @@ impl FromRecord for Energize {
 }
 
 
-
 #[derive(Debug)]
 pub struct CastFailed {
-    fail_type: String
+    fail_type: String,
 }
 
 impl FromRecord for CastFailed {
     fn parse_record(line: &[&str]) -> Self {
         Self {
             fail_type: line[0].to_string(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct EmpowerEnd {
+    empower_rank: u8
+}
+
+impl FromRecord for EmpowerEnd {
+    fn parse_record(line: &[&str]) -> Self {
+        Self {
+            empower_rank: u8::from_str(line[0]).unwrap(),
         }
     }
 }
@@ -241,6 +256,8 @@ pub enum EventSuffix {
     DISSIPATES,
     SPLIT,
     SHIELD,
+    EMPOWER_START,
+    EMPOWER_END,
 }
 
 impl EventSuffix {
