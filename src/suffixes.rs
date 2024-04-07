@@ -1,274 +1,528 @@
 use std::str::FromStr;
 
-use strum::{AsRefStr, EnumIter, EnumString, IntoEnumIterator};
-
-use crate::traits::FromRecord;
+use crate::common_components::{Actor, SpellInfo};
+use crate::enums::{AuraType, MissType, PowerType, SpellSchool};
+use crate::suffixes::Suffix::{Absorbed, AuraApplied, AuraAppliedDose, AuraBroken, AuraBrokenSpell, AuraRefresh, AuraRemoved, AuraRemovedDose, CastFailed, CastStart, CastSuccess, Create, Damage, DamageLanded, Dispel, DispelFailed, Drain, DurabilityDamage, DurabilityDamageAll, EmpowerEnd, EmpowerInterrupt, EmpowerStart, Energize, ExtraAttacks, Heal, HealAbsorbed, Instakill, Interrupt, Leech, Missed, Resurrect, Stolen, Summon};
+use crate::traits::ToCamel;
+use crate::utils::{parse_bool, parse_num};
 
 #[derive(Debug)]
 pub enum Suffix {
-    Damage(Damage),
-    Missed(Missed),
-    Heal(Heal),
-    Aura(AuraSuffixes),
-    Energize(Energize),
-    CastFailed(CastFailed),
-    EmpowerEnd(EmpowerEnd),
+    Damage {
+        amount: u64,
+        base_amount: u64,
+        overkill: Option<u64>,
+        school: Option<Vec<SpellSchool>>,
+        resisted: u64,
+        blocked: u64,
+        absorbed: i64,
+        critical: bool,
+        glancing: bool,
+        crushing: bool,
+    },
+    DamageLanded {
+        amount: u64,
+        base_amount: u64,
+        overkill: Option<u64>,
+        school: Option<Vec<SpellSchool>>,
+        resisted: u64,
+        blocked: u64,
+        absorbed: u64,
+        critical: bool,
+        glancing: bool,
+        crushing: bool,
+    },
+    Missed {
+        miss_type: MissType,
+        offhand: bool,
+        amount_missed: u64,
+        base_amount: u64,
+        critical: bool,
+    },
+    Heal {
+        amount: u64,
+        base_amount: u64,
+        overhealing: u64,
+        absorbed: u64,
+        critical: bool,
+    },
+    HealAbsorbed {
+        actor: Option<Actor>,
+        spell_info: SpellInfo,
+        absorbed_amount: u64,
+        total_amount: u64,
+    },
+    Absorbed {
+        absorb_caster: Actor,
+        absorb_spell_info: SpellInfo,
+        absorbed_amount: i64,
+        base_amount: u64,
+        critical: bool,
+    },
+    Energize {
+        amount: f32,
+        over_energize: f32,
+        power_type: PowerType,
+        max_power: u64,
+    },
+    Drain {
+        amount: u64,
+        power_type: PowerType,
+        extra_amount: u64,
+        max_power: u64,
+    },
+    Leech {
+        amount: u64,
+        power_type: PowerType,
+        extra_amount: u64,
+    },
+    Interrupt { spell_info: SpellInfo },
+    Dispel {
+        spell_info: SpellInfo,
+        aura_type: AuraType,
+    },
+    DispelFailed { spell_info: SpellInfo },
+    Stolen {
+        spell_info: SpellInfo,
+        aura_type: AuraType,
+    },
+    ExtraAttacks { amount: u64 },
+    AuraApplied {
+        aura_type: AuraType,
+        amount: Option<u64>,
+    },
+    AuraRemoved {
+        aura_type: AuraType,
+        amount: Option<u64>,
+    },
+    AuraAppliedDose {
+        aura_type: AuraType,
+        amount: u64,
+    },
+    AuraRemovedDose {
+        aura_type: AuraType,
+        amount: u64,
+    },
+    AuraRefresh { aura_type: AuraType },
+    AuraBroken { aura_type: AuraType },
+    AuraBrokenSpell {
+        spell_info: SpellInfo,
+        aura_type: AuraType,
+    },
+    CastStart,
+    CastSuccess,
+    CastFailed { failed_type: String },
+    Instakill { unconscious_on_death: bool },
+    DurabilityDamage,
+    DurabilityDamageAll,
+    Create,
+    Summon,
+    Resurrect,
+    EmpowerStart,
+    EmpowerEnd { empowered_rank: u64 },
+    EmpowerInterrupt { empowered_rank: u64 },
 }
 
 impl Suffix {
-    pub fn parse_record(line: &[&str], suffix_type: EventSuffix) -> Option<Self> {
-        match suffix_type {
-            EventSuffix::DAMAGE => Some(Self::Damage(Damage::parse_record(line))),
+    pub fn parse(event_type: &str, line: &[&str]) -> Self {
+        match event_type {
+            x if x.ends_with("DAMAGE") => Damage {
+                amount: parse_num(line[0]),
+                base_amount: parse_num(line[1]),
+                overkill: match line[2] {
+                    "-1" => None,
+                    x => Some(parse_num(x))
+                },
+                school: SpellSchool::parse(line[3]),
+                resisted: parse_num(line[4]),
+                blocked: parse_num(line[5]),
+                absorbed: parse_num(line[6]),
+                critical: parse_bool(line[7]),
+                glancing: parse_bool(line[8]),
+                crushing: parse_bool(line[9]),
+            },
 
-            EventSuffix::MISSED => Some(Self::Missed(Missed::parse_record(line))),
+            x if x.ends_with("DAMAGE_LANDED") => DamageLanded {
+                amount: parse_num(line[0]),
+                base_amount: parse_num(line[1]),
+                overkill: match line[2] {
+                    "-1" => None,
+                    x => Some(parse_num(x))
+                },
+                school: SpellSchool::parse(line[3]),
+                resisted: parse_num(line[4]),
+                blocked: parse_num(line[5]),
+                absorbed: parse_num(line[6]),
+                critical: parse_bool(line[7]),
+                glancing: parse_bool(line[8]),
+                crushing: parse_bool(line[9]),
+            },
 
-            EventSuffix::HEAL => Some(Self::Heal(Heal::parse_record(line))),
+            x if x.ends_with("MISSED") => {
+                let miss_type = MissType::from_str(&line[0].to_camel_case())
+                    .expect(&format!("Failed to parse MissType: {}", line[0]));
 
-            EventSuffix::AURA_APPLIED |
-            EventSuffix::AURA_APPLIED_DOSE |
-            EventSuffix::AURA_REFRESH |
-            EventSuffix::AURA_REMOVED |
-            EventSuffix::AURA_REMOVED_DOSE => Some(Self::Aura(AuraSuffixes::parse_record(line))),
+                let (amount_missed, base_amount, critical) = match miss_type {
+                    MissType::Absorb => (
+                        parse_num(line[2]),
+                        parse_num(line[3]),
+                        parse_bool(line[4])
+                    ),
+                    _ => (0, 0, false)
+                };
 
-            EventSuffix::CAST_SUCCESS |
-            EventSuffix::CAST_START |
-            EventSuffix::SUMMON |
-            EventSuffix::CREATE |
-            EventSuffix::EMPOWER_START |
-            EventSuffix::ABSORBED => None,
-
-            EventSuffix::ENERGIZE => Some(Self::Energize(Energize::parse_record(line))),
-
-            EventSuffix::SPLIT => Some(Self::Damage(Damage::parse_record(line))),
-
-            EventSuffix::CAST_FAILED => Some(Self::CastFailed(CastFailed::parse_record(line))),
-
-            EventSuffix::EMPOWER_END => Some(Self::EmpowerEnd(EmpowerEnd::parse_record(line))),
-
-            x => {
-                todo!("Suffix parsing not implemented: {:?}", x)
+                Missed {
+                    miss_type,
+                    offhand: parse_bool(line[1]),
+                    amount_missed,
+                    base_amount,
+                    critical,
+                }
             }
-        }
-    }
-}
 
-#[derive(Debug)]
-pub struct Damage {
-    amount: u64,
-    overkill: u64,
-    school: i32,
-    resisted: u64,
-    blocked: u64,
-    absorbed: u64,
-    critical: bool,
-    glancing: bool,
-    crushing: bool,
-    offhand: bool,
-}
+            x if x.ends_with("HEAL") => Heal {
+                amount: parse_num(line[0]),
+                base_amount: parse_num(line[1]),
+                overhealing: parse_num(line[2]),
+                absorbed: parse_num(line[3]),
+                critical: parse_bool(line[4]),
+            },
 
-impl FromRecord for Damage {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            amount: u64::from_str(line[0]).unwrap(),
-            overkill: u64::from_str(line[1]).unwrap(),
-            school: i32::from_str(line[2]).unwrap(),
-            resisted: u64::from_str(line[3]).unwrap(),
-            blocked: u64::from_str(line[4]).unwrap(),
-            absorbed: u64::from_str(line[5]).unwrap(),
-            critical: line[6] != "0",
-            glancing: line[7] != "nil",
-            crushing: line[8] != "nil",
-            offhand: line[9] != "nil",
-        }
-    }
-}
+            x if x.ends_with("HEAL_ABSORBED") => HealAbsorbed {
+                actor: Actor::parse(&line[..4]),
+                spell_info: SpellInfo::parse_record(&line[4..7]),
+                absorbed_amount: parse_num(line[7]),
+                total_amount: parse_num(line[8]),
+            },
 
+            x if x.ends_with("ABSORBED") => Absorbed {
+                absorb_caster: Actor::parse(&line[..4]).unwrap(),
+                absorb_spell_info: SpellInfo::parse_record(&line[4..7]),
+                absorbed_amount: parse_num(line[7]),
+                base_amount: parse_num(line[8]),
+                critical: parse_bool(line[9]),
+            },
 
-#[derive(Debug, EnumString)]
-pub enum MissType {
-    ABSORB,
-    BLOCK,
-    DEFLECT,
-    DODGE,
-    EVADE,
-    IMMUNE,
-    MISS,
-    PARRY,
-    REFLECT,
-    RESIST,
-}
+            x if x.ends_with("ENERGIZE") => Energize {
+                amount: parse_num(line[0]),
+                over_energize: parse_num(line[1]),
+                power_type: PowerType::parse(line[2])
+                    .expect(&format!("Invalid power type: {}", line[2])),
+                max_power: parse_num(line[3]),
+            },
 
-#[derive(Debug)]
-pub struct Missed {
-    miss_type: MissType,
-    offhand: bool,
-    amount_missed: u64,
-    unknown_quantity: u64,
-    critical: bool,
-}
+            x if x.ends_with("DRAIN") => Drain {
+                amount: parse_num(line[0]),
+                power_type: PowerType::parse(line[1]).expect(&format!("Invalid power type: {}", line[1])),
+                extra_amount: parse_num(line[2]),
+                max_power: parse_num(line[3]),
+            },
 
-impl FromRecord for Missed {
-    fn parse_record(line: &[&str]) -> Self {
-        let miss_type = MissType::from_str(line[0]).unwrap();
+            x if x.ends_with("LEECH") => Leech {
+                amount: parse_num(line[0]),
+                power_type: PowerType::parse(line[1]).expect(&format!("Invalid power type: {}", line[1])),
+                extra_amount: parse_num(line[2]),
+            },
 
-        // ABSORB has 3 extra parameters
-        let (amount_missed, unknown_quantity, critical) = match miss_type {
-            MissType::ABSORB => (
-                u64::from_str(line[2]).unwrap(),
-                u64::from_str(line[3]).unwrap(),
-                line[4] != "nil"
-            ),
-            _ => (0, 0, false)
-        };
+            x if x.ends_with("EMPOWER_INTERRUPT") => EmpowerInterrupt {
+                empowered_rank: parse_num(line[0])
+            },
 
+            x if x.ends_with("INTERRUPT") => Interrupt {
+                spell_info: SpellInfo::parse_record(&line[..3]),
+            },
 
-        Self {
-            miss_type,
-            offhand: line[1] != "nil",
-            amount_missed,
-            unknown_quantity,
-            critical,
-        }
-    }
-}
+            x if x.ends_with("DISPEL") => Dispel {
+                spell_info: SpellInfo::parse_record(&line[..3]),
+                aura_type: AuraType::from_str(line[3])
+                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+            },
 
-#[derive(Debug)]
-pub struct Heal {
-    amount: u64,
-    over_healing: u64,
-    absorbed: u64,
-    critical: bool,
-}
+            x if x.ends_with("DISPEL_FAILED") => DispelFailed {
+                spell_info: SpellInfo::parse_record(&line[..3]),
+            },
 
-impl FromRecord for Heal {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            amount: u64::from_str(line[0]).unwrap(),
-            over_healing: u64::from_str(line[1]).unwrap(),
-            absorbed: u64::from_str(line[2]).unwrap(),
-            critical: line[3] != "0",
-        }
-    }
-}
+            x if x.ends_with("STOLEN") => Stolen {
+                spell_info: SpellInfo::parse_record(&line[..3]),
+                aura_type: AuraType::from_str(line[3])
+                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+            },
 
-#[derive(Debug, EnumString)]
-enum AuraType {
-    BUFF,
-    DEBUFF,
-}
+            x if x.ends_with("EXTRA_ATTACKS") => ExtraAttacks {
+                amount: parse_num(line[0])
+            },
 
-#[derive(Debug)]
-pub struct AuraSuffixes {
-    aura_type: AuraType,
-    amount: Option<u64>,
-}
+            x if x.ends_with("AURA_APPLIED") => {
+                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])) };
 
-
-impl FromRecord for AuraSuffixes {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            aura_type: AuraType::from_str(line[0]).unwrap(),
-            amount: if line.len() > 1 {
-                Some(u64::from_str(line[1]).unwrap())
-            } else { None },
-        }
-    }
-}
-
-
-#[derive(Debug)]
-pub struct Energize {
-    amount: f32,
-    over_energize: f32,
-    power_type: u64,
-    max_power: u64,
-}
-
-impl FromRecord for Energize {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            amount: f32::from_str(line[0]).unwrap(),
-            over_energize: f32::from_str(line[1]).unwrap(),
-            power_type: u64::from_str(line[2]).unwrap(),
-            max_power: u64::from_str(line[3]).unwrap(),
-        }
-    }
-}
-
-
-#[derive(Debug)]
-pub struct CastFailed {
-    fail_type: String,
-}
-
-impl FromRecord for CastFailed {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            fail_type: line[0].to_string(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct EmpowerEnd {
-    empower_rank: u8
-}
-
-impl FromRecord for EmpowerEnd {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            empower_rank: u8::from_str(line[0]).unwrap(),
-        }
-    }
-}
-
-#[derive(Debug, AsRefStr, EnumIter, PartialEq)]
-pub enum EventSuffix {
-    SHIELD_MISSED,
-    DAMAGE,
-    MISSED,
-    HEAL_ABSORBED,
-    HEAL,
-    ABSORBED,
-    ENERGIZE,
-    DRAIN,
-    LEECH,
-    INTERRUPT,
-    DISPEL_FAILED,
-    DISPEL,
-    STOLEN,
-    EXTRA_ATTACKS,
-    AURA_APPLIED,
-    AURA_APPLIED_DOSE,
-    AURA_REMOVED,
-    AURA_REMOVED_DOSE,
-    AURA_REFRESH,
-    AURA_BROKEN,
-    AURA_BROKEN_SPELL,
-    CAST_START,
-    CAST_SUCCESS,
-    CAST_FAILED,
-    INSTAKILL,
-    DURABILITY_DAMAGE_ALL,
-    DURABILITY_DAMAGE,
-    CREATE,
-    SUMMON,
-    DISSIPATES,
-    SPLIT,
-    SHIELD,
-    EMPOWER_START,
-    EMPOWER_END,
-}
-
-impl EventSuffix {
-    pub fn parse(s: &str) -> Option<Self> {
-        for e in Self::iter() {
-            if s.ends_with(e.as_ref()) {
-                return Some(e);
+                AuraApplied {
+                    aura_type: AuraType::from_str(&line[0].to_camel_case())
+                        .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                    amount,
+                }
             }
-        }
 
-        return None;
+            x if x.ends_with("AURA_REMOVED") => {
+                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])) };
+
+                AuraRemoved {
+                    aura_type: AuraType::from_str(&line[0].to_camel_case())
+                        .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                    amount,
+                }
+            }
+
+            x if x.ends_with("AURA_APPLIED_DOSE") => AuraAppliedDose {
+                aura_type: AuraType::from_str(&line[0].to_camel_case())
+                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                amount: parse_num(line[1]),
+            },
+
+            x if x.ends_with("AURA_REMOVED_DOSE") => AuraRemovedDose {
+                aura_type: AuraType::from_str(&line[0].to_camel_case())
+                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                amount: parse_num(line[1]),
+            },
+
+            x if x.ends_with("AURA_REFRESH") => AuraRefresh {
+                aura_type: AuraType::from_str(&line[0].to_camel_case())
+                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+            },
+
+            x if x.ends_with("AURA_BROKEN") => AuraBroken {
+                aura_type: AuraType::from_str(&line[0].to_camel_case())
+                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+            },
+
+            x if x.ends_with("AURA_BROKEN_SPELL") => AuraBrokenSpell {
+                spell_info: SpellInfo::parse_record(&line[..3]),
+                aura_type: AuraType::from_str(&line[3].to_camel_case())
+                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+            },
+
+            x if x.ends_with("CAST_START") => CastStart,
+
+            x if x.ends_with("CAST_SUCCESS") => CastSuccess,
+
+            x if x.ends_with("CAST_FAILED") => CastFailed {
+                failed_type: line[0].to_string(),
+            },
+
+            x if x.ends_with("INSTAKILL") => Instakill {
+                unconscious_on_death: parse_bool(line[0]),
+            },
+
+            x if x.ends_with("DURABILITY_DAMAGE") => DurabilityDamage,
+
+            x if x.ends_with("DURABILITY_DAMAGE_ALL") => DurabilityDamageAll,
+
+            x if x.ends_with("CREATE") => Create,
+
+            x if x.ends_with("SUMMON") => Summon,
+
+            x if x.ends_with("RESURRECT") => Resurrect,
+
+            x if x.ends_with("EMPOWER_START") => EmpowerStart,
+
+            x if x.ends_with("EMPOWER_END") => EmpowerEnd {
+                empowered_rank: parse_num(line[0]),
+            },
+
+            _ => panic!("Unknown suffix: {}", event_type)
+        }
+    }
+
+    pub fn has_advanced_params(event_type: &str) -> bool {
+        // todo: fill these in - surely a better way to do this
+        let advanced_suffixes = vec![
+            "DAMAGE",
+            "DAMAGE_LANDED",
+            "HEAL",
+            "CAST_SUCCESS",
+            "ENERGIZE",
+            "DRAIN",
+            "LEECH",
+            "DISPEL",
+            "STOLEN",
+            "CAST_SUCCESS",
+        ];
+        let non_advanced_suffixes = vec![
+            "AURA_APPLIED",
+            "AURA_REMOVED",
+            "MISSED",
+            "HEAL_ABSORBED",
+            "ABSORBED",
+            "EMPOWER_INTERRUPT",
+            "INTERRUPT",
+            "DISPEL_FAILED",
+            "EXTRA_ATTACKS",
+            "AURA_APPLIED_DOSE",
+            "AURA_REMOVED_DOSE",
+            "AURA_REFRESH",
+            "AURA_BROKEN",
+            "AURA_BROKEN_SPELL",
+            "CAST_START",
+            "CAST_FAILED",
+            "INSTAKILL",
+            "DURABILITY_DAMAGE",
+            "DURABILITY_DAMAGE_ALL",
+            "CREATE",
+            "SUMMON",
+            "RESURRECT",
+            "EMPOWER_START",
+            "EMPOWER_END",
+        ];
+
+        match event_type {
+            x if advanced_suffixes.iter().any(|s| x.ends_with(s)) => true,
+            x if non_advanced_suffixes.iter().any(|s| x.ends_with(s)) => false,
+            _ => panic!("Unknown suffix: {}", event_type)
+        }
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::suffixes::Suffix;
+
+    #[test]
+    fn parse() {
+        let event_type = "SPELL_DAMAGE";
+        let line = vec!["23134", "23133", "-1", "2", "0", "0", "0", "nil", "nil", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_DAMAGE";
+        let line = vec!["22844", "26082", "-1", "4", "0", "0", "-2025", "nil", "nil", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_PERIODIC_MISSED";
+        let line = vec!["ABSORB", "nil", "9478", "11175", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_HEAL";
+        let line = vec!["2621", "2621", "0", "0", "1"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_ABSORBED";
+        let line = vec!["Player-1587-0F81497D", "Huisarts-Arathor", "0x514", "0x0", "47753", "Divine Aegis", "0x2", "983", "56699", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_ABSORBED";
+        let line = vec!["Player-1329-0A0800FA", "Foxgates-Ravencrest", "0x512", "0x0", "386124", "Fel Armor", "0x20", "-2900", "48673", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_PERIODIC_ENERGIZE";
+        let line = vec!["1.0000", "0.0000", "5", "6"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_DRAIN";
+        let line = vec!["25", "3", "0", "160"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_EMPOWER_INTERRUPT";
+        let line = vec!["0"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_APPLIED";
+        let line = vec!["DEBUFF"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let line = vec!["DEBUFF", "123"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_REMOVED";
+        let line = vec!["DEBUFF"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let line = vec!["DEBUFF", "123"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_APPLIED_DOSE";
+        let line = vec!["DEBUFF", "123"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_REMOVED_DOSE";
+        let line = vec!["DEBUFF", "123"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_REFRESH";
+        let line = vec!["DEBUFF"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_BROKEN";
+        let line = vec!["DEBUFF"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_AURA_BROKEN_SPELL";
+        let line = vec!["360194", "Deathmark", "1", "DEBUFF"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_CAST_START";
+        let line = vec![];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_CAST_SUCCESS";
+        let line = vec![];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_CAST_FAILED";
+        let line = vec!["Not yet recovered"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_SUMMON";
+        let line = vec![];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_RESURRECT";
+        let line = vec![];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_EMPOWER_START";
+        let line = vec![];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_EMPOWER_END";
+        let line = vec!["1"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SWING_DAMAGE_LANDED";
+        let line = vec!["16898", "12070", "-1", "1", "0", "0", "0", "1", "nil", "nil"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_HEAL_ABSORBED";
+        let line = vec!["Creature-0-4233-2549-14868-54983-00004E66CB", "Treant", "0x2114", "0x0", "422382", "Wild Growth", "0x8", "2585", "2585"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+
+        let event_type = "SPELL_HEAL_ABSORBED";
+        let line = vec!["0000000000000000", "Unknown", "0x80000000", "0x80000000", "422382", "Wild Growth", "0x8", "2438", "2438"];
+        let parsed = Suffix::parse(event_type, &line);
+        println!("{:?}", parsed);
+    }
+}

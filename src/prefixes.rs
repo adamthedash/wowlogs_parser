@@ -1,69 +1,68 @@
 use std::str::FromStr;
-use std::u64;
 
-use strum::{AsRefStr, EnumIter, IntoEnumIterator};
+use crate::common_components::SpellInfo;
+use crate::enums::EnvironmentalType;
+use crate::traits::ToCamel;
 
-use crate::traits::FromRecord;
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Prefix {
-    SWING,
-    RANGE(Spell),
-    SPELL(Spell),
-    SPELL_PERIODIC(Spell),
-    SPELL_BUILDING(Spell),
-    DAMAGE(Spell),
+    Swing,
+    Range(SpellInfo),
+    Spell(Option<SpellInfo>),
+    SpellPeriodic(SpellInfo),
+    SpellBuilding(SpellInfo),
+    Environmental(EnvironmentalType),
 }
 
 impl Prefix {
-    pub fn parse_record(line: &[&str], prefix_type: EventPrefix) -> Self {
-        match prefix_type {
-            EventPrefix::SWING => { Self::SWING }
-            EventPrefix::RANGE => { Self::RANGE(Spell::parse_record(line)) }
-            EventPrefix::SPELL => { Self::SPELL(Spell::parse_record(line)) }
-            EventPrefix::SPELL_PERIODIC => { Self::SPELL_PERIODIC(Spell::parse_record(line)) }
-            EventPrefix::SPELL_BUILDING => { Self::SPELL_BUILDING(Spell::parse_record(line)) }
-            EventPrefix::DAMAGE => { Self::DAMAGE(Spell::parse_record(line)) }
+    pub(crate) fn parse(event_type: &str, line: &[&str]) -> Self {
+        match event_type {
+            x if x.starts_with("SWING") => Self::Swing,
+            x if x.starts_with("RANGE") => Self::Range(SpellInfo::parse_record(&line[..3])),
+            x if x.starts_with("SPELL_PERIODIC") => Self::SpellPeriodic(SpellInfo::parse_record(&line[..3])),
+            x if x.starts_with("SPELL_BUILDING") => Self::SpellBuilding(SpellInfo::parse_record(&line[..3])),
+            x if x.starts_with("SPELL") => Self::Spell({
+                match line.len() {
+                    0 => None,
+                    3 => Some(SpellInfo::parse_record(&line[..3])),
+                    _ => panic!("Bad number of entries for Spell")
+                }
+            }),
+            x if x.starts_with("ENVIRONMENTAL") => Self::Environmental(EnvironmentalType::from_str(&line[0].to_camel_case())
+                .expect(&format!("Error parsing Environmental prefix: {}", line[0]))),
+            _ => panic!("Unknown prefix: {}", event_type)
+        }
+    }
+
+    pub(crate) fn entries_to_consume(event_type: &str) -> usize {
+        match event_type {
+            x if x.starts_with("SWING") => 0,
+            x if x.starts_with("RANGE") |
+                x.starts_with("SPELL_PERIODIC") |
+                x.starts_with("SPELL_BUILDING") |
+                x.starts_with("SPELL") => 3,
+            x if x.starts_with("ENVIRONMENTAL") => 1,
+            _ => panic!("Unknown prefix: {}", event_type)
         }
     }
 }
 
-#[derive(Debug, AsRefStr, EnumIter, PartialEq)]
-pub enum EventPrefix {
-    SWING,
-    RANGE,
-    SPELL,
-    SPELL_PERIODIC,
-    SPELL_BUILDING,
-    DAMAGE,
-}
+#[cfg(test)]
+mod tests {
+    use crate::prefixes::Prefix;
 
-impl EventPrefix {
-    pub fn parse(s: &str) -> Option<Self> {
-        for e in Self::iter() {
-            if s.starts_with(e.as_ref()) {
-                return Some(e);
-            }
-        }
+    #[test]
+    fn parse() {
+        let event_type = "SPELL_PERIODIC_HEAL";
+        let lines = vec!["8936", "Regrowth", "0x8"];
+        let parsed = Prefix::parse(event_type, &lines);
 
-        return None;
-    }
-}
+        let event_type = "SWING_DAMAGE";
+        let lines = vec![];
+        let parsed = Prefix::parse(event_type, &lines);
 
-#[derive(Debug, PartialEq)]
-pub struct Spell {
-    id: u64,
-    name: String,
-    school: u64,
-}
-
-impl FromRecord for Spell {
-    fn parse_record(line: &[&str]) -> Self {
-        Self {
-            id: u64::from_str(line[0]).expect("Error parsing spell ID"),
-            name: line[1].to_string(),
-            school: u64::from_str_radix(line[2].trim_start_matches("0x"), 16)
-                .expect("Error parsing spell school"),
-        }
+        let event_type = "SPELL_AURA_APPLIED";
+        let lines = vec!["6673", "Battle Shout", "0x1"];
+        let parsed = Prefix::parse(event_type, &lines);
     }
 }
