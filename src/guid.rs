@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, Context};
+use anyhow::{bail, Context};
 use anyhow::Result;
 use strum::EnumString;
 
@@ -93,7 +93,7 @@ impl GUID {
                     id: parse_num(parts[5])?,
                     spawn_uid: parts[6].to_string(),
                 },
-            _ => return Err(anyhow!("GUID type not found: {}", parts[0]))
+            _ => bail!("GUID type not found: {}", parts[0])
         };
 
         Ok(Some(matched))

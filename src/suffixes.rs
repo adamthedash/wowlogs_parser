@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::common_components::{Actor, SpellInfo};
 use crate::enums::{AuraType, MissType, PowerType, SpellSchool};
@@ -332,7 +332,7 @@ impl Suffix {
                 empowered_rank: parse_num(line[0])?,
             },
 
-            _ => return Err(anyhow!("Unknown suffix: {}", event_type))
+            _ => bail!("Unknown suffix: {}", event_type)
         };
 
         Ok(matched)

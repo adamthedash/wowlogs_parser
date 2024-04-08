@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 
 use crate::common_components::Actor;
 use crate::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
@@ -196,7 +196,7 @@ impl Special {
                 text: line[4].to_string(),
             },
 
-            _ => return Err(anyhow!("Unknown special event: {}", event_type))
+            _ => bail!("Unknown special event: {}", event_type)
         };
 
         Ok(matched)
