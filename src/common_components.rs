@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn parse_spell_info() {
         let line = vec!["8936", "Regrowth", "0x8"];
-        let parsed = SpellInfo::parse_record(&line);
+        let _parsed = SpellInfo::parse_record(&line);
     }
 
     #[test]

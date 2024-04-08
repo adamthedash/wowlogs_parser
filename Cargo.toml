@@ -14,3 +14,10 @@ strum = { version = "0.26.2" , features = ["derive"]}
 rayon = "1.10.0"
 anyhow = "1.0.81"
 num-traits = "0.2.18"
+
+[lints.rust]
+unused_variables = "warn"
+dead_code = "allow"
+
+[lints.clippy]
+large_enum_variant = "warn"

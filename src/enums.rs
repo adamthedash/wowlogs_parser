@@ -124,9 +124,9 @@ mod tests {
 
     #[test]
     fn parse_spell_school() {
-        assert_eq!(SpellSchool::parse("0x2".as_ref()).unwrap(), Some(vec![Holy]));
-        assert_eq!(SpellSchool::parse("0x6A".as_ref()).unwrap(), Some(vec![Holy, Nature, Shadow, Arcane]));
-        assert!(SpellSchool::parse("-1".as_ref()).unwrap().is_none());
+        assert_eq!(SpellSchool::parse("0x2").unwrap(), Some(vec![Holy]));
+        assert_eq!(SpellSchool::parse("0x6A").unwrap(), Some(vec![Holy, Nature, Shadow, Arcane]));
+        assert!(SpellSchool::parse("-1").unwrap().is_none());
     }
 
     #[test]

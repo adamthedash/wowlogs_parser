@@ -63,14 +63,14 @@ mod tests {
     fn parse() {
         let event_type = "SPELL_PERIODIC_HEAL";
         let lines = vec!["8936", "Regrowth", "0x8"];
-        let parsed = Prefix::parse(event_type, &lines);
+        let _parsed = Prefix::parse(event_type, &lines);
 
         let event_type = "SWING_DAMAGE";
         let lines = vec![];
-        let parsed = Prefix::parse(event_type, &lines);
+        let _parsed = Prefix::parse(event_type, &lines);
 
         let event_type = "SPELL_AURA_APPLIED";
         let lines = vec!["6673", "Battle Shout", "0x1"];
-        let parsed = Prefix::parse(event_type, &lines);
+        let _parsed = Prefix::parse(event_type, &lines);
     }
 }

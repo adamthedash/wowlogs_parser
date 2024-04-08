@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn parse_position() {
-        let parsed = Position::parse(&vec!["3295.44", "13209.11"], "3.4506");
+        let parsed = Position::parse(&["3295.44", "13209.11"], "3.4506");
         println!("{:?}", parsed);
     }
 
