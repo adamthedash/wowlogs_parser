@@ -1,8 +1,10 @@
-use std::str::FromStr;
 use std::u64;
+
+use anyhow::{Context, Result};
 
 use crate::enums::SpellSchool;
 use crate::guid::GUID;
+use crate::utils::{parse_hex, parse_num};
 
 #[derive(Debug)]
 pub struct SpellInfo {
@@ -20,37 +22,39 @@ pub struct Actor {
 }
 
 impl SpellInfo {
-    pub fn parse_record(line: &[&str]) -> Self {
+    pub fn parse_record(line: &[&str]) -> Result<Self> {
         assert_eq!(line.len(), 3);
 
-        Self {
-            spell_id: u64::from_str(line[0])
-                .expect(&format!("Error parsing u64: {}", line[0])),
+        let spell_school = SpellSchool::parse(line[2])?
+            .with_context(|| format!("Error parsing spell school: {}", line[2]))?;
+
+        Ok(Self {
+            spell_id: parse_num(line[0])?,
             spell_name: line[1].to_string(),
-            spell_school: SpellSchool::parse(line[2])
-                .expect(&format!("Error parsing spell school: {}", line[2])),
-        }
+            spell_school,
+        })
     }
 }
 
 impl Actor {
-    pub fn parse(line: &[&str]) -> Option<Self> {
+    pub fn parse(line: &[&str]) -> Result<Option<Self>> {
         let guid = GUID::parse(line[0])?;
+        let guid = if let Some(g) = guid { g } else { return Ok(None); };
+
+        let flags = parse_hex(line[2]).context("Error parsing target flags")?;
 
         let raid_flags = match line[3] {
-            x if x == "nil" => None,
-            x => Some(u64::from_str_radix(x.trim_start_matches("0x"), 16)
-                .expect("Error parsing target raid flags"))
+            "nil" => None,
+            x => Some(parse_hex(x).context("Error parsing target raid flags")?)
         };
 
-        Some(Self {
+        Ok(Some(Self {
             guid,
             name: line[1].to_string(),
-            flags: u64::from_str_radix(line[2].trim_start_matches("0x"), 16)
-                .expect("Error parsing target flags"),
+            flags,
             raid_flags,
 
-        })
+        }))
     }
 }
 
@@ -69,14 +73,14 @@ mod tests {
     fn parse_actor() {
         let line = vec!["Player-1393-077C088C", "Mubaku-BronzeDragonflight", "0x514", "0x0"];
         let parsed = Actor::parse(&line);
-        assert!(parsed.is_some());
+        assert!(parsed.is_ok_and(|x| x.is_some()));
 
         let line = vec!["0000000000000000", "nil", "0x80000000", "0x80000000"];
         let parsed = Actor::parse(&line);
-        assert!(parsed.is_none());
+        assert!(parsed.is_ok_and(|x| x.is_none()));
 
         let line = vec!["Creature-0-4233-2549-14868-200927-00004E8C97", "Smolderon", "0000000000000000", "nil"];
         let parsed = Actor::parse(&line);
-        assert!(parsed.is_some_and(|a| a.raid_flags.is_none()));
+        assert!(parsed.is_ok_and(|a| a.is_some_and(|a| a.raid_flags.is_none())));
     }
 }

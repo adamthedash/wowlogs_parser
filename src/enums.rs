@@ -1,9 +1,10 @@
 use std::i8;
 use std::str::FromStr;
 
+use anyhow::{Context, Result};
 use strum::{EnumIter, EnumString, IntoEnumIterator};
 
-use crate::traits::ToCamel;
+use crate::utils::parse_num;
 
 /// https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#Spell_School
 #[derive(Debug, EnumIter, PartialEq, Copy, Clone)]
@@ -19,18 +20,18 @@ pub enum SpellSchool {
 
 impl SpellSchool {
     /// Hex bitmask to vector of schools
-    pub(crate) fn parse(s: &str) -> Option<Vec<SpellSchool>> {
-        if s == "-1" { return None; }
+    pub(crate) fn parse(s: &str) -> Result<Option<Vec<SpellSchool>>> {
+        if s == "-1" { return Ok(None); }
 
         let s = if s.starts_with("0x") {
             u8::from_str_radix(s.trim_start_matches("0x"), 16)
         } else {
             u8::from_str(s)
-        }.expect(&format!("Could not parse spell school as u8: {s}"));
+        }.with_context(|| format!("Could not parse spell school as u8: {s}"))?;
 
-        Some(Self::iter()
+        Ok(Some(Self::iter()
             .filter(|&e| (e as u8) & s != 0)
-            .collect())
+            .collect()))
     }
 }
 
@@ -67,16 +68,15 @@ pub enum PowerType {
 }
 
 impl PowerType {
-    pub(crate) fn parse(s: &str) -> Option<PowerType> {
-        if s == "-1" { return None; };
+    pub(crate) fn parse(s: &str) -> Result<Option<PowerType>> {
+        if s == "-1" { return Ok(None); };
 
-        let s = i8::from_str(s)
-            .expect(&format!("Failed to parse PowerType: {s}"));
+        let s = parse_num(s)?;
 
         let matched = Self::iter().find(|&e| e as i8 == s)
-            .expect(&format!("Failed to find matching PowerType: {s}"));
+            .with_context(|| format!("Failed to find matching PowerType: {s}"))?;
 
-        Some(matched)
+        Ok(Some(matched))
     }
 }
 
@@ -124,16 +124,16 @@ mod tests {
 
     #[test]
     fn parse_spell_school() {
-        assert_eq!(SpellSchool::parse("0x2".as_ref()), Some(vec![Holy]));
-        assert_eq!(SpellSchool::parse("0x6A".as_ref()), Some(vec![Holy, Nature, Shadow, Arcane]));
-        assert!(SpellSchool::parse("-1".as_ref()).is_none());
+        assert_eq!(SpellSchool::parse("0x2".as_ref()).unwrap(), Some(vec![Holy]));
+        assert_eq!(SpellSchool::parse("0x6A".as_ref()).unwrap(), Some(vec![Holy, Nature, Shadow, Arcane]));
+        assert!(SpellSchool::parse("-1".as_ref()).unwrap().is_none());
     }
 
     #[test]
     fn parse_power_type() {
-        assert_eq!(PowerType::parse("-2"), Some(PowerType::Health));
-        assert_eq!(PowerType::parse("-1"), None);
-        assert_eq!(PowerType::parse("22"), Some(PowerType::RuneUnholy));
+        assert_eq!(PowerType::parse("-2").unwrap(), Some(PowerType::Health));
+        assert_eq!(PowerType::parse("-1").unwrap(), None);
+        assert_eq!(PowerType::parse("22").unwrap(), Some(PowerType::RuneUnholy));
     }
 
     #[test]

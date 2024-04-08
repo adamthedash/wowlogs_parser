@@ -1,3 +1,5 @@
+use anyhow::{anyhow, Result};
+
 use crate::common_components::Actor;
 use crate::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
 use crate::utils::{parse_bool, parse_num};
@@ -101,101 +103,103 @@ pub enum Special {
 }
 
 impl Special {
-    pub fn parse(event_type: &str, line: &[&str]) -> Result<Self, String> {
-        match event_type {
-            "ENCHANT_APPLIED" => Ok(EnchantApplied {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
+    pub fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
+        let matched = match event_type {
+            "ENCHANT_APPLIED" => EnchantApplied {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
                 spell_name: line[8].to_string(),
-                item_id: parse_num(line[9]),
+                item_id: parse_num(line[9])?,
                 item_name: line[10].to_string(),
-            }),
+            },
 
-            "ENCHANT_REMOVED" => Ok(EnchantRemoved {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
+            "ENCHANT_REMOVED" => EnchantRemoved {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
                 spell_name: line[8].to_string(),
-                item_id: parse_num(line[9]),
+                item_id: parse_num(line[9])?,
                 item_name: line[10].to_string(),
-            }),
+            },
 
-            "PARTY_KILL" => Ok(PartyKill {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
-                unconscious_on_death: parse_bool(line[8]),
-            }),
+            "PARTY_KILL" => PartyKill {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
+                unconscious_on_death: parse_bool(line[8])?,
+            },
 
-            "UNIT_DIED" => Ok(UnitDied {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
-                unconscious_on_death: parse_bool(line[8]),
-            }),
+            "UNIT_DIED" => UnitDied {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
+                unconscious_on_death: parse_bool(line[8])?,
+            },
 
-            "UNIT_DESTROYED" => Ok(UnitDestroyed {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
-                unconscious_on_death: parse_bool(line[8]),
-            }),
+            "UNIT_DESTROYED" => UnitDestroyed {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
+                unconscious_on_death: parse_bool(line[8])?,
+            },
 
-            "UNIT_DISSIPATES" => Ok(UnitDissipates {
-                source: Actor::parse(&line[0..4]),
-                target: Actor::parse(&line[4..8]),
-                unconscious_on_death: parse_bool(line[8]),
-            }),
+            "UNIT_DISSIPATES" => UnitDissipates {
+                source: Actor::parse(&line[0..4])?,
+                target: Actor::parse(&line[4..8])?,
+                unconscious_on_death: parse_bool(line[8])?,
+            },
 
-            "COMBAT_LOG_VERSION" => Ok(CombatLogInfo {
-                log_version: parse_num(line[0]),
-                advanced_log_enabled: parse_bool(line[2]),
+            "COMBAT_LOG_VERSION" => CombatLogInfo {
+                log_version: parse_num(line[0])?,
+                advanced_log_enabled: parse_bool(line[2])?,
                 build_version: line[4].to_string(),
-                project_id: parse_num(line[6]),
-            }),
+                project_id: parse_num(line[6])?,
+            },
 
-            "ZONE_CHANGE" => Ok(ZoneChange {
-                instance_id: parse_num(line[0]),
+            "ZONE_CHANGE" => ZoneChange {
+                instance_id: parse_num(line[0])?,
                 zone_name: line[1].to_string(),
-                id: parse_num(line[2]),
-            }),
+                id: parse_num(line[2])?,
+            },
 
-            "MAP_CHANGE" => Ok(MapChange {
-                ui_map_id: parse_num(line[0]),
+            "MAP_CHANGE" => MapChange {
+                ui_map_id: parse_num(line[0])?,
                 ui_map_name: line[1].to_string(),
-                x0: parse_num(line[2]),
-                x1: parse_num(line[3]),
-                y0: parse_num(line[4]),
-                y1: parse_num(line[5]),
-            }),
+                x0: parse_num(line[2])?,
+                x1: parse_num(line[3])?,
+                y0: parse_num(line[4])?,
+                y1: parse_num(line[5])?,
+            },
 
-            "ENCOUNTER_START" => Ok(EncounterStart {
-                encounter_id: parse_num(line[0]),
+            "ENCOUNTER_START" => EncounterStart {
+                encounter_id: parse_num(line[0])?,
                 encounter_name: line[1].to_string(),
-                difficulty_id: parse_num(line[2]),
-                group_size: parse_num(line[3]),
-                instance_id: parse_num(line[4]),
-            }),
-            "ENCOUNTER_END" => Ok(EncounterEnd {
-                encounter_id: parse_num(line[0]),
+                difficulty_id: parse_num(line[2])?,
+                group_size: parse_num(line[3])?,
+                instance_id: parse_num(line[4])?,
+            },
+            "ENCOUNTER_END" => EncounterEnd {
+                encounter_id: parse_num(line[0])?,
                 encounter_name: line[1].to_string(),
-                difficulty_id: parse_num(line[2]),
-                group_size: parse_num(line[3]),
-                success: parse_bool(line[4]),
-                fight_time: parse_num(line[5]),
-            }),
-            "WORLD_MARKER_PLACED" => Ok(WorldMarkerPlaced {
-                instance_id: parse_num(line[0]),
-                marker: parse_num(line[1]),
-                x: parse_num(line[2]),
-                y: parse_num(line[3]),
-            }),
-            "WORLD_MARKER_REMOVED" => Ok(WorldMarkerRemoved {
-                marker: parse_num(line[0]),
-            }),
-            "EMOTE" => Ok(Emote {
-                actor: Actor::parse(&line[..4]),
+                difficulty_id: parse_num(line[2])?,
+                group_size: parse_num(line[3])?,
+                success: parse_bool(line[4])?,
+                fight_time: parse_num(line[5])?,
+            },
+            "WORLD_MARKER_PLACED" => WorldMarkerPlaced {
+                instance_id: parse_num(line[0])?,
+                marker: parse_num(line[1])?,
+                x: parse_num(line[2])?,
+                y: parse_num(line[3])?,
+            },
+            "WORLD_MARKER_REMOVED" => WorldMarkerRemoved {
+                marker: parse_num(line[0])?,
+            },
+            "EMOTE" => Emote {
+                actor: Actor::parse(&line[..4])?,
                 text: line[4].to_string(),
-            }),
+            },
 
-            _ => Err(format!("Unknown special event: {}", event_type))
-        }
+            _ => return Err(anyhow!("Unknown special event: {}", event_type))
+        };
+
+        Ok(matched)
     }
 }
 

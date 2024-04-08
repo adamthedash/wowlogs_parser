@@ -11,9 +11,6 @@ use crate::events::Event;
 struct Args {
     #[arg(short, long, value_name = "FILE")]
     wowlog_path: PathBuf,
-
-    #[arg(short, long, value_name = "FILE")]
-    out_path: PathBuf,
 }
 
 
@@ -90,30 +87,26 @@ mod events;
 
 
 fn parse_file(log_path: PathBuf) -> Vec<Event> {
-    let mut reader = csv::ReaderBuilder::new()
+    let reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
         .from_path(log_path)
         .expect("Error loading wowlogs file.");
 
 
-    let skipping_events = vec![
-        "COMBATANT_INFO",
-        "DAMAGE_SUPPORT",
-        "DAMAGE_LANDED_SUPPORT",
-        "HEAL_SUPPORT",
-        "SPELL_ABSORBED_SUPPORT",
-    ];
-
-
     let events = reader.into_records()
         .par_bridge()
-        .filter_map(|r| match r {
-            Ok(x) => Some(x),
-            Err(_) => None
-        })
-        .filter(|line| !skipping_events.iter().any(|e| line[0].contains(e)))
+        .filter_map(Result::ok)
         .map(|line| Event::parse(&line.iter().collect_vec()))
+        .filter_map(|e| {
+            match e {
+                Ok(x) => Some(x),
+                Err(x) => {
+                    eprintln!("{}", x);
+                    None
+                }
+            }
+        })
         .collect::<Vec<_>>();
 
     events
@@ -143,7 +136,7 @@ mod tests {
         println!("num events: {}", events.len())
     }
 
-    #[bench]
+    #[test]
     fn test2() {
         let wowlog_path = PathBuf::from_str("/test_data/WoWCombatLog-021524_201412.txt").unwrap();
 

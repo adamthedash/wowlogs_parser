@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use anyhow::{anyhow, Context};
+use anyhow::Result;
 use strum::EnumString;
 
 use crate::utils::parse_num;
@@ -70,36 +72,31 @@ pub enum GUID {
 }
 
 impl GUID {
-    pub(crate) fn parse(s: &str) -> Option<Self> {
-        if s == "0000000000000000" { return None; }
+    pub(crate) fn parse(s: &str) -> Result<Option<Self>> {
+        if s == "0000000000000000" { return Ok(None); }
 
-        let parts = s.split("-").collect::<Vec<_>>();
+        let parts = s.split('-').collect::<Vec<_>>();
 
-
-        match parts[0] {
-            "Player" => {
-                Some(Self::Player {
-                    server_id: parse_num(parts[1]),
+        let matched = match parts[0] {
+            "Player" =>
+                Self::Player {
+                    server_id: parse_num(parts[1])?,
                     player_uid: parts[2].to_string(),
-                })
-            }
-            "Pet" | "Creature" | "GameObject" | "Vehicle" => {
-                Some(
-                    Self::Creature {
-                        unit_type: CreatureType::from_str(parts[0])
-                            .expect(&format!("Error parsing CreatureType: {}", parts[0])),
-                        server_id: parse_num(parts[2]),
-                        instance_id: parse_num(parts[3]),
-                        zone_uid: parse_num(parts[4]),
-                        id: parse_num(parts[5]),
-                        spawn_uid: parts[6].to_string(),
-                    }
-                )
-            }
-            _ => {
-                panic!("GUID type not found: {}", parts[0]);
-            }
-        }
+                },
+            "Pet" | "Creature" | "GameObject" | "Vehicle" =>
+                Self::Creature {
+                    unit_type: CreatureType::from_str(parts[0])
+                        .with_context(|| format!("Error parsing CreatureType: {}", parts[0]))?,
+                    server_id: parse_num(parts[2])?,
+                    instance_id: parse_num(parts[3])?,
+                    zone_uid: parse_num(parts[4])?,
+                    id: parse_num(parts[5])?,
+                    spawn_uid: parts[6].to_string(),
+                },
+            _ => return Err(anyhow!("GUID type not found: {}", parts[0]))
+        };
+
+        Ok(Some(matched))
     }
 }
 
@@ -111,14 +108,12 @@ mod tests {
     #[test]
     fn parse() {
         let parsed = GUID::parse("0000000000000000");
-        assert!(parsed.is_none());
+        assert!(parsed.is_ok_and(|x| x.is_none()));
 
         let parsed = GUID::parse("Player-1403-0A5506C6");
-        assert!(parsed.is_some());
-        println!("{:?}", parsed);
+        assert!(parsed.is_ok_and(|x| x.is_some()));
 
         let parsed = GUID::parse("Creature-0-1469-2549-12530-209333-000011428A");
-        assert!(parsed.is_some());
-        println!("{:?}", parsed);
+        assert!(parsed.is_ok_and(|x| x.is_some()));
     }
 }

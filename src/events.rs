@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 
@@ -27,14 +28,14 @@ enum EventType {
 }
 
 impl EventType {
-    fn parse(event_type: &str, line: &[&str]) -> Self {
+    fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
         // Match against any special events
         let special = special::Special::parse(event_type, line);
-        if special.is_ok() {
-            return Self::Special {
+        if let Ok(s) = special {
+            return Ok(Self::Special {
                 name: event_type.to_string(),
-                details: special.unwrap(),
-            };
+                details: s,
+            });
         }
 
         // match against standard but specially named events
@@ -52,38 +53,38 @@ impl EventType {
         };
 
         // Fallback to standard one
-        let source = Actor::parse(&line[..4]);
-        let target = Actor::parse(&line[4..8]);
+        let source = Actor::parse(&line[..4])?;
+        let target = Actor::parse(&line[4..8])?;
 
         let to_consume = match event_type {
             // Special case: ABSORB may or may not contain spell info
             // we have no way to tell without attempting to parse and catching fails
             e if e == "SPELL_ABSORBED"
                 && u64::from_str(line[8]).is_err() => 0,
-            _ => Prefix::entries_to_consume(event_type)
+            _ => Prefix::entries_to_consume(event_type)?
         };
 
-        let prefix = Prefix::parse(event_type, &line[8..8 + to_consume]);
+        let prefix = Prefix::parse(event_type, &line[8..8 + to_consume])?;
         let mut offset = 8 + to_consume;
 
-        let advanced = if Suffix::has_advanced_params(event_type) {
-            let a = Some(AdvancedParams::parse(&line[offset..offset + 17]));
+        let advanced = if Suffix::has_advanced_params(event_type)? {
+            let a = AdvancedParams::parse(&line[offset..offset + 17])?;
             offset += 17;
-            a
+            Some(a)
         } else {
             None
         };
 
-        let suffixes = Suffix::parse(event_type, &line[offset..]);
+        let suffixes = Suffix::parse(event_type, &line[offset..])?;
 
-        Self::Standard {
+        Ok(Self::Standard {
             name: name.to_string(),
             source,
             target,
             prefix,
             advanced_params: advanced,
             suffix: suffixes,
-        }
+        })
     }
 }
 
@@ -95,7 +96,7 @@ pub struct Event {
 }
 
 impl Event {
-    pub(crate) fn parse(line: &[&str]) -> Self {
+    pub(crate) fn parse(line: &[&str]) -> Result<Self> {
         // Split timestamp & event type
         let (timestamp, event_type) = if line[0] == "COMBAT_LOG_VERSION" {
             (
@@ -103,24 +104,23 @@ impl Event {
                 line[0]
             )
         } else {
-            let date_event_type = line[0].splitn(2, "  ").collect_tuple();
-            if date_event_type.is_none() {
-                panic!("Error splitting date & event type: {}", line[0]);
-            }
-            let (date, event_type) = date_event_type.unwrap();
+            let (date, event_type) = line[0].splitn(2, "  ")
+                .collect_tuple()
+                .with_context(|| format!("Error splitting date & event type: {}", line[0]))?;
 
             // todo: horrible hacky way of date parsing
-            let date = vec!["2024/ ", date].join("");
+            let date = ["2024/ ", date].join("");
             let datetime = NaiveDateTime::parse_from_str(date.as_str(), "%Y/%_m/%d %H:%M:%S%.3f")
                 .expect("Failed to parse date.");
 
             (datetime, event_type)
         };
 
-        Self {
+        Ok(Self {
             timestamp,
-            event_type: EventType::parse(event_type, &line[1..]),
-        }
+            event_type: EventType::parse(event_type, &line[1..])
+                .with_context(|| format!("Error parsing line: {:?}", line))?,
+        })
     }
 }
 

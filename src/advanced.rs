@@ -1,5 +1,4 @@
-use std::str::FromStr;
-
+use anyhow::Result;
 use itertools::izip;
 
 use crate::enums::PowerType;
@@ -15,22 +14,22 @@ struct PowerInfo {
 }
 
 impl PowerInfo {
-    fn parse(line: &[&str]) -> Vec<Self> {
+    fn parse(line: &[&str]) -> Result<Vec<Self>> {
         assert_eq!(line.len(), 4);
 
         izip!(
-            line[0].split("|"),
-            line[1].split("|"),
-            line[2].split("|"),
-            line[3].split("|")
+            line[0].split('|'),
+            line[1].split('|'),
+            line[2].split('|'),
+            line[3].split('|')
         )
-            .map(|(t, cur, max, cost)| PowerInfo {
-                power_type: PowerType::parse(t),
-                current_power: parse_num(cur),
-                max_power: parse_num(max),
-                power_cost: parse_num(cost),
-            })
-            .collect()
+            .map(|(t, cur, max, cost)| Ok(PowerInfo {
+                power_type: PowerType::parse(t)?,
+                current_power: parse_num(cur)?,
+                max_power: parse_num(max)?,
+                power_cost: parse_num(cost)?,
+            }))
+            .collect::<Result<Vec<_>>>()
     }
 }
 
@@ -42,14 +41,14 @@ struct Position {
 }
 
 impl Position {
-    fn parse(line_xy: &[&str], line_facing: &str) -> Self {
+    fn parse(line_xy: &[&str], line_facing: &str) -> Result<Self> {
         assert_eq!(line_xy.len(), 2);
 
-        Self {
-            x: parse_num(line_xy[0]),
-            y: parse_num(line_xy[1]),
-            facing: parse_num(line_facing),
-        }
+        Ok(Self {
+            x: parse_num(line_xy[0])?,
+            y: parse_num(line_xy[1])?,
+            facing: parse_num(line_facing)?,
+        })
     }
 }
 
@@ -70,23 +69,23 @@ pub struct AdvancedParams {
 }
 
 impl AdvancedParams {
-    pub(crate) fn parse(line: &[&str]) -> Self {
+    pub(crate) fn parse(line: &[&str]) -> Result<Self> {
         assert_eq!(line.len(), 17);
 
-        Self {
-            info_guid: GUID::parse(line[0]),
-            owner_guid: GUID::parse(line[1]),
-            current_hp: parse_num(line[2]),
-            max_hp: parse_num(line[3]),
-            attack_power: parse_num(line[4]),
-            spell_power: parse_num(line[5]),
-            armor: parse_num(line[6]),
-            absorb: parse_num(line[7]),
-            power_info: PowerInfo::parse(&line[8..12]),
-            position: Position::parse(&line[12..14], line[15]),
-            ui_map_id: parse_num(line[14]),
-            level_or_ilvl: parse_num(line[16]),
-        }
+        Ok(Self {
+            info_guid: GUID::parse(line[0])?,
+            owner_guid: GUID::parse(line[1])?,
+            current_hp: parse_num(line[2])?,
+            max_hp: parse_num(line[3])?,
+            attack_power: parse_num(line[4])?,
+            spell_power: parse_num(line[5])?,
+            armor: parse_num(line[6])?,
+            absorb: parse_num(line[7])?,
+            power_info: PowerInfo::parse(&line[8..12])?,
+            position: Position::parse(&line[12..14], line[15])?,
+            ui_map_id: parse_num(line[14])?,
+            level_or_ilvl: parse_num(line[16])?,
+        })
     }
 }
 

@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use anyhow::{anyhow, bail, Context, Result};
+
 use crate::common_components::{Actor, SpellInfo};
 use crate::enums::{AuraType, MissType, PowerType, SpellSchool};
 use crate::suffixes::Suffix::{Absorbed, AuraApplied, AuraAppliedDose, AuraBroken, AuraBrokenSpell, AuraRefresh, AuraRemoved, AuraRemovedDose, CastFailed, CastStart, CastSuccess, Create, Damage, DamageLanded, Dispel, DispelFailed, Drain, DurabilityDamage, DurabilityDamageAll, EmpowerEnd, EmpowerInterrupt, EmpowerStart, Energize, ExtraAttacks, Heal, HealAbsorbed, Instakill, Interrupt, Leech, Missed, Resurrect, Stolen, Summon};
@@ -124,56 +126,56 @@ pub enum Suffix {
 }
 
 impl Suffix {
-    pub fn parse(event_type: &str, line: &[&str]) -> Self {
-        match event_type {
+    pub fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
+        let matched = match event_type {
             x if x.ends_with("DAMAGE") => Damage {
-                amount: parse_num(line[0]),
-                base_amount: parse_num(line[1]),
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
                 overkill: match line[2] {
                     "-1" => None,
-                    x => Some(parse_num(x))
+                    x => Some(parse_num(x)?)
                 },
-                school: SpellSchool::parse(line[3]),
-                resisted: parse_num(line[4]),
-                blocked: parse_num(line[5]),
-                absorbed: parse_num(line[6]),
-                critical: parse_bool(line[7]),
-                glancing: parse_bool(line[8]),
-                crushing: parse_bool(line[9]),
+                school: SpellSchool::parse(line[3])?,
+                resisted: parse_num(line[4])?,
+                blocked: parse_num(line[5])?,
+                absorbed: parse_num(line[6])?,
+                critical: parse_bool(line[7])?,
+                glancing: parse_bool(line[8])?,
+                crushing: parse_bool(line[9])?,
             },
 
             x if x.ends_with("DAMAGE_LANDED") => DamageLanded {
-                amount: parse_num(line[0]),
-                base_amount: parse_num(line[1]),
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
                 overkill: match line[2] {
                     "-1" => None,
-                    x => Some(parse_num(x))
+                    x => Some(parse_num(x)?)
                 },
-                school: SpellSchool::parse(line[3]),
-                resisted: parse_num(line[4]),
-                blocked: parse_num(line[5]),
-                absorbed: parse_num(line[6]),
-                critical: parse_bool(line[7]),
-                glancing: parse_bool(line[8]),
-                crushing: parse_bool(line[9]),
+                school: SpellSchool::parse(line[3])?,
+                resisted: parse_num(line[4])?,
+                blocked: parse_num(line[5])?,
+                absorbed: parse_num(line[6])?,
+                critical: parse_bool(line[7])?,
+                glancing: parse_bool(line[8])?,
+                crushing: parse_bool(line[9])?,
             },
 
             x if x.ends_with("MISSED") => {
                 let miss_type = MissType::from_str(&line[0].to_camel_case())
-                    .expect(&format!("Failed to parse MissType: {}", line[0]));
+                    .with_context(|| format!("Failed to parse MissType: {}", line[0]))?;
 
                 let (amount_missed, base_amount, critical) = match miss_type {
                     MissType::Absorb => (
-                        parse_num(line[2]),
-                        parse_num(line[3]),
-                        parse_bool(line[4])
+                        parse_num(line[2])?,
+                        parse_num(line[3])?,
+                        parse_bool(line[4])?
                     ),
                     _ => (0, 0, false)
                 };
 
                 Missed {
                     miss_type,
-                    offhand: parse_bool(line[1]),
+                    offhand: parse_bool(line[1])?,
                     amount_missed,
                     base_amount,
                     critical,
@@ -181,123 +183,125 @@ impl Suffix {
             }
 
             x if x.ends_with("HEAL") => Heal {
-                amount: parse_num(line[0]),
-                base_amount: parse_num(line[1]),
-                overhealing: parse_num(line[2]),
-                absorbed: parse_num(line[3]),
-                critical: parse_bool(line[4]),
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
+                overhealing: parse_num(line[2])?,
+                absorbed: parse_num(line[3])?,
+                critical: parse_bool(line[4])?,
             },
 
             x if x.ends_with("HEAL_ABSORBED") => HealAbsorbed {
-                actor: Actor::parse(&line[..4]),
-                spell_info: SpellInfo::parse_record(&line[4..7]),
-                absorbed_amount: parse_num(line[7]),
-                total_amount: parse_num(line[8]),
+                actor: Actor::parse(&line[..4])?,
+                spell_info: SpellInfo::parse_record(&line[4..7])?,
+                absorbed_amount: parse_num(line[7])?,
+                total_amount: parse_num(line[8])?,
             },
 
             x if x.ends_with("ABSORBED") => Absorbed {
-                absorb_caster: Actor::parse(&line[..4]).unwrap(),
-                absorb_spell_info: SpellInfo::parse_record(&line[4..7]),
-                absorbed_amount: parse_num(line[7]),
-                base_amount: parse_num(line[8]),
-                critical: parse_bool(line[9]),
+                absorb_caster: Actor::parse(&line[..4])?.unwrap(),
+                absorb_spell_info: SpellInfo::parse_record(&line[4..7])?,
+                absorbed_amount: parse_num(line[7])?,
+                base_amount: parse_num(line[8])?,
+                critical: parse_bool(line[9])?,
             },
 
             x if x.ends_with("ENERGIZE") => Energize {
-                amount: parse_num(line[0]),
-                over_energize: parse_num(line[1]),
-                power_type: PowerType::parse(line[2])
-                    .expect(&format!("Invalid power type: {}", line[2])),
-                max_power: parse_num(line[3]),
+                amount: parse_num(line[0])?,
+                over_energize: parse_num(line[1])?,
+                power_type: PowerType::parse(line[2])?
+                    .with_context(|| format!("Invalid power type: {}", line[2]))?,
+                max_power: parse_num(line[3])?,
             },
 
             x if x.ends_with("DRAIN") => Drain {
-                amount: parse_num(line[0]),
-                power_type: PowerType::parse(line[1]).expect(&format!("Invalid power type: {}", line[1])),
-                extra_amount: parse_num(line[2]),
-                max_power: parse_num(line[3]),
+                amount: parse_num(line[0])?,
+                power_type: PowerType::parse(line[1])?
+                    .with_context(|| format!("Invalid power type: {}", line[1]))?,
+                extra_amount: parse_num(line[2])?,
+                max_power: parse_num(line[3])?,
             },
 
             x if x.ends_with("LEECH") => Leech {
-                amount: parse_num(line[0]),
-                power_type: PowerType::parse(line[1]).expect(&format!("Invalid power type: {}", line[1])),
-                extra_amount: parse_num(line[2]),
+                amount: parse_num(line[0])?,
+                power_type: PowerType::parse(line[1])?
+                    .with_context(|| format!("Invalid power type: {}", line[1]))?,
+                extra_amount: parse_num(line[2])?,
             },
 
             x if x.ends_with("EMPOWER_INTERRUPT") => EmpowerInterrupt {
-                empowered_rank: parse_num(line[0])
+                empowered_rank: parse_num(line[0])?
             },
 
             x if x.ends_with("INTERRUPT") => Interrupt {
-                spell_info: SpellInfo::parse_record(&line[..3]),
+                spell_info: SpellInfo::parse_record(&line[..3])?,
             },
 
             x if x.ends_with("DISPEL") => Dispel {
-                spell_info: SpellInfo::parse_record(&line[..3]),
+                spell_info: SpellInfo::parse_record(&line[..3])?,
                 aura_type: AuraType::from_str(line[3])
-                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
             x if x.ends_with("DISPEL_FAILED") => DispelFailed {
-                spell_info: SpellInfo::parse_record(&line[..3]),
+                spell_info: SpellInfo::parse_record(&line[..3])?,
             },
 
             x if x.ends_with("STOLEN") => Stolen {
-                spell_info: SpellInfo::parse_record(&line[..3]),
+                spell_info: SpellInfo::parse_record(&line[..3])?,
                 aura_type: AuraType::from_str(line[3])
-                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
             x if x.ends_with("EXTRA_ATTACKS") => ExtraAttacks {
-                amount: parse_num(line[0])
+                amount: parse_num(line[0])?
             },
 
             x if x.ends_with("AURA_APPLIED") => {
-                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])) };
+                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
                 AuraApplied {
                     aura_type: AuraType::from_str(&line[0].to_camel_case())
-                        .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                        .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                     amount,
                 }
             }
 
             x if x.ends_with("AURA_REMOVED") => {
-                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])) };
+                let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
                 AuraRemoved {
                     aura_type: AuraType::from_str(&line[0].to_camel_case())
-                        .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                        .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                     amount,
                 }
             }
 
             x if x.ends_with("AURA_APPLIED_DOSE") => AuraAppliedDose {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
-                amount: parse_num(line[1]),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                amount: parse_num(line[1])?,
             },
 
             x if x.ends_with("AURA_REMOVED_DOSE") => AuraRemovedDose {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
-                amount: parse_num(line[1]),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                amount: parse_num(line[1])?,
             },
 
             x if x.ends_with("AURA_REFRESH") => AuraRefresh {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
             },
 
             x if x.ends_with("AURA_BROKEN") => AuraBroken {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .expect(&format!("Failed to parse AuraType: {}", line[0])),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
             },
 
             x if x.ends_with("AURA_BROKEN_SPELL") => AuraBrokenSpell {
-                spell_info: SpellInfo::parse_record(&line[..3]),
+                spell_info: SpellInfo::parse_record(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
-                    .expect(&format!("Failed to parse AuraType: {}", line[3])),
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
             x if x.ends_with("CAST_START") => CastStart,
@@ -309,7 +313,7 @@ impl Suffix {
             },
 
             x if x.ends_with("INSTAKILL") => Instakill {
-                unconscious_on_death: parse_bool(line[0]),
+                unconscious_on_death: parse_bool(line[0])?,
             },
 
             x if x.ends_with("DURABILITY_DAMAGE") => DurabilityDamage,
@@ -325,16 +329,18 @@ impl Suffix {
             x if x.ends_with("EMPOWER_START") => EmpowerStart,
 
             x if x.ends_with("EMPOWER_END") => EmpowerEnd {
-                empowered_rank: parse_num(line[0]),
+                empowered_rank: parse_num(line[0])?,
             },
 
-            _ => panic!("Unknown suffix: {}", event_type)
-        }
+            _ => return Err(anyhow!("Unknown suffix: {}", event_type))
+        };
+
+        Ok(matched)
     }
 
-    pub fn has_advanced_params(event_type: &str) -> bool {
+    pub fn has_advanced_params(event_type: &str) -> Result<bool> {
         // todo: fill these in - surely a better way to do this
-        let advanced_suffixes = vec![
+        let advanced_suffixes = [
             "DAMAGE",
             "DAMAGE_LANDED",
             "HEAL",
@@ -346,7 +352,7 @@ impl Suffix {
             "STOLEN",
             "CAST_SUCCESS",
         ];
-        let non_advanced_suffixes = vec![
+        let non_advanced_suffixes = [
             "AURA_APPLIED",
             "AURA_REMOVED",
             "MISSED",
@@ -373,11 +379,13 @@ impl Suffix {
             "EMPOWER_END",
         ];
 
-        match event_type {
+        let matched = match event_type {
             x if advanced_suffixes.iter().any(|s| x.ends_with(s)) => true,
             x if non_advanced_suffixes.iter().any(|s| x.ends_with(s)) => false,
-            _ => panic!("Unknown suffix: {}", event_type)
-        }
+            _ => bail!("Unknown suffix: {}", event_type)
+        };
+
+        Ok(matched)
     }
 }
 
