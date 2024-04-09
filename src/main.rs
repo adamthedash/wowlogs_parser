@@ -1,8 +1,10 @@
-use std::io::{Read, stdin};
+use std::fs::File;
+use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
-use clap::Parser;
 use itertools::Itertools;
-use rayon::prelude::*;
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::events::Event;
 
@@ -18,14 +20,17 @@ mod advanced;
 mod events;
 
 
-fn parse_file<R: Read + Send>(reader: R) {
-    let reader = csv::ReaderBuilder::new()
+fn parse_file<R: Read>(buf_reader: R) where
+{
+    // Used to parse lines
+    let mut binding = csv::ReaderBuilder::new();
+    let mut reader = binding
         .has_headers(false)
         .flexible(true)
-        .from_reader(reader);
+        .from_reader(buf_reader);
 
-    reader.into_records()
-        .par_bridge()
+
+    reader.records()
         .filter_map(Result::ok)
         .map(|line| Event::parse(&line.iter().collect_vec()))
         .for_each(|e| {
@@ -36,9 +41,43 @@ fn parse_file<R: Read + Send>(reader: R) {
         });
 }
 
+fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // Automatically select the best implementation for your platform.
+    // You can also access each implementation directly e.g. INotifyWatcher.
+    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+
+    // Get the number of bytes currently in the file - we only want to tail it
+
+    let mut prev_size = File::open(path)?.metadata()?.len();
+    for res in rx {
+        match res {
+            Ok(event) => {
+                let mut file = File::open(&event.paths[0])?;
+                let new_size = file.metadata()?.len();
+
+                file.seek(SeekFrom::Current(prev_size as i64))?;
+
+                parse_file(BufReader::new(file));
+
+                prev_size = new_size;
+            }
+
+            Err(x) => {}
+        }
+    }
+
+    Ok(())
+}
 
 fn main() {
-    parse_file(stdin());
+    let wowlog_path = PathBuf::from_str(r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-040924_182641.txt").unwrap();
+    watch(wowlog_path).unwrap();
 }
 
 
