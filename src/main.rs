@@ -1,78 +1,10 @@
-use std::path::PathBuf;
+use std::io::{Read, stdin};
 
 use clap::Parser;
 use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::events::Event;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long, value_name = "FILE")]
-    wowlog_path: PathBuf,
-}
-
-
-// fn main() {
-//     let args = Args::parse();
-//
-//     let mut reader = csv::ReaderBuilder::new()
-//         .has_headers(false)
-//         .flexible(true)
-//         .from_path(args.wowlog_path)
-//         .expect("Error loading wowlogs file.");
-//
-//
-//     let mut events = vec![];
-//     for entry in reader.records() {
-//         let parsed = parse_line(&entry.expect("Error parsing entry."));
-//         if parsed.is_err() {
-//             println!("Error parsing entry, skipping. {:?}", parsed);
-//             continue;
-//         }
-//         // println!("{:?}\n", parsed);
-//
-//         events.push(parsed.unwrap());
-//     }
-//
-//     println!("{}", events.len());
-//
-//     let actors = events.iter()
-//         .filter_map(|e| match &e.event_type {
-//             EventTypes::Other(OtherEvent { source: Some(a), .. }) => Some(&a.name),
-//             _ => None
-//         })
-//         .collect::<HashSet<_>>();
-//
-//     println!("{:?}", actors);
-//     let actors = events.iter()
-//         .filter_map(|e| match &e.event_type {
-//             EventTypes::Other(OtherEvent { target: Some(a), .. }) => Some(&a.name),
-//             _ => None
-//         })
-//         .collect::<HashSet<_>>();
-//
-//     println!("{:?}", actors);
-//
-//     let adam = "Yildrisz-Ravencrest".to_string();
-//     let adam_spells = events.iter()
-//         .filter_map(|e| match &e.event_type {
-//             EventTypes::Other(OtherEvent {
-//                                   source: Some(Actor { name: s, .. }),
-//                                   target: Some(Actor { name: t, .. }),
-//                                   prefix: Prefix::SPELL(spell),
-//                                   ..
-//                               })
-//             if s == &adam && t == &adam => { Some(spell) }
-//             _ => None
-//         })
-//         .collect::<Vec<_>>();
-//
-//     println!("{:?}", adam_spells);
-// }
-//
-//
 
 mod enums;
 mod traits;
@@ -86,43 +18,33 @@ mod advanced;
 mod events;
 
 
-fn parse_file(log_path: PathBuf) -> Vec<Event> {
+fn parse_file<R: Read + Send>(reader: R) {
     let reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
-        .from_path(log_path)
-        .expect("Error loading wowlogs file.");
+        .from_reader(reader);
 
-
-    let events = reader.into_records()
+    reader.into_records()
         .par_bridge()
         .filter_map(Result::ok)
         .map(|line| Event::parse(&line.iter().collect_vec()))
-        .filter_map(|e| {
+        .for_each(|e| {
             match e {
-                Ok(x) => Some(x),
-                Err(x) => {
-                    eprintln!("{}", x);
-                    None
-                }
+                Ok(x) => println!("{:?}", x),
+                Err(x) => eprintln!("{}", x)
             }
-        })
-        .collect::<Vec<_>>();
-
-    events
+        });
 }
 
 
 fn main() {
-    let args = Args::parse();
-
-    let events = parse_file(args.wowlog_path);
-    println!("Events parsed: {}", events.len())
+    parse_file(stdin());
 }
 
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
     use std::path::PathBuf;
     use std::str::FromStr;
 
@@ -132,16 +54,27 @@ mod tests {
     fn test1() {
         let wowlog_path = PathBuf::from_str(r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-040624_135724.txt").unwrap();
 
-        let events = parse_file(wowlog_path);
-        println!("num events: {}", events.len())
+        let file = File::open(wowlog_path)
+            .expect("Error loading wowlogs file.");
+
+        parse_file(file);
     }
 
     #[test]
     fn test2() {
         let wowlog_path = PathBuf::from_str("/test_data/WoWCombatLog-021524_201412.txt").unwrap();
 
-        let events = parse_file(wowlog_path);
-        println!("num events: {}", events.len())
+        let file = File::open(wowlog_path)
+            .expect("Error loading wowlogs file.");
+
+        parse_file(file);
+    }
+
+    #[test]
+    fn test3() {
+        let file = "2/15 20:14:12.865  COMBAT_LOG_VERSION,20,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,10.2.5,PROJECT_ID,1\n".as_bytes();
+
+        parse_file(file);
     }
 }
 
