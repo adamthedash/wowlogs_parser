@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
+use crate::consumers::{EventHandler, StdLogger};
 use crate::parser::EventParser;
 
 mod enums;
@@ -18,17 +19,22 @@ mod special;
 mod advanced;
 mod events;
 mod parser;
+mod consumers;
 
 
 /// Parses the entire buffer
 fn parse_file<R: Read>(buf_reader: R) {
     let reader = EventParser::new(buf_reader);
+
+    let mut handlers: Vec<Box<dyn EventHandler>> = vec![
+        Box::new(StdLogger {}),
+    ];
+
+
     reader
         .for_each(|e| {
-            match e {
-                Ok(x) => println!("{:?}", x),
-                Err(x) => eprintln!("{}", x)
-            }
+            handlers.iter_mut()
+                .for_each(|h| h.handle(&e));
         });
 }
 
