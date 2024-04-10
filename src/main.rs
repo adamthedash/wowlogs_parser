@@ -3,10 +3,9 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use itertools::Itertools;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::events::Event;
+use crate::parser::EventParser;
 
 mod enums;
 mod traits;
@@ -18,21 +17,13 @@ mod utils;
 mod special;
 mod advanced;
 mod events;
+mod parser;
 
 
-fn parse_file<R: Read>(buf_reader: R) where
-{
-    // Used to parse lines
-    let mut binding = csv::ReaderBuilder::new();
-    let mut reader = binding
-        .has_headers(false)
-        .flexible(true)
-        .from_reader(buf_reader);
-
-
-    reader.records()
-        .filter_map(Result::ok)
-        .map(|line| Event::parse(&line.iter().collect_vec()))
+/// Parses the entire buffer
+fn parse_file<R: Read>(buf_reader: R) {
+    let reader = EventParser::new(buf_reader);
+    reader
         .for_each(|e| {
             match e {
                 Ok(x) => println!("{:?}", x),
@@ -50,33 +41,29 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
 
     // Get the number of bytes currently in the file - we only want to tail it
-
     let mut prev_size = File::open(path)?.metadata()?.len();
-    for res in rx {
-        match res {
-            Ok(event) => {
-                let mut file = File::open(&event.paths[0])?;
-                let new_size = file.metadata()?.len();
 
-                file.seek(SeekFrom::Current(prev_size as i64))?;
 
-                parse_file(BufReader::new(file));
+    for event in rx.iter().filter_map(Result::ok) {
+        let mut file = File::open(&event.paths[0])?;
+        let new_size = file.metadata()?.len();
 
-                prev_size = new_size;
-            }
+        file.seek(SeekFrom::Current(prev_size as i64))?;
 
-            Err(x) => {}
-        }
+        parse_file(BufReader::new(file));
+
+        prev_size = new_size;
+
     }
 
     Ok(())
 }
 
 fn main() {
-    let wowlog_path = PathBuf::from_str(r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-040924_182641.txt").unwrap();
+    let wowlog_path = PathBuf::from_str(r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-041024_185840.txt").unwrap();
     watch(wowlog_path).unwrap();
 }
 
@@ -88,6 +75,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::parse_file;
+    use crate::parser::EventParser;
 
     #[test]
     fn test1() {
@@ -114,6 +102,15 @@ mod tests {
         let file = "2/15 20:14:12.865  COMBAT_LOG_VERSION,20,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,10.2.5,PROJECT_ID,1\n".as_bytes();
 
         parse_file(file);
+    }
+
+    #[test]
+    fn test_new_method() {
+        let file = "2/15 20:14:12.865  COMBAT_LOG_VERSION,20,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,10.2.5,PROJECT_ID,1\n2/15 20:14:12.865  COMBAT_LOG_VERSION,15,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,10.2.5,PROJECT_ID,1\n".as_bytes();
+
+        for event in EventParser::new(file) {
+            println!("{:?}", event.unwrap());
+        }
     }
 }
 
