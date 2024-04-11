@@ -4,6 +4,7 @@ use std::str::FromStr;
 use anyhow::{Context, Result};
 use strum::{EnumIter, EnumString, IntoEnumIterator};
 
+use crate::traits::ToCamel;
 use crate::utils::parse_num;
 
 /// https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#Spell_School
@@ -111,6 +112,13 @@ pub enum EnvironmentalType {
     Fire,
     Lava,
     Slime,
+}
+
+impl EnvironmentalType {
+    pub fn parse(s: &str) -> Result<Self> {
+        EnvironmentalType::from_str(&s.to_camel_case())
+            .with_context(|| format!("Error parsing Environmental prefix: {}", s))
+    }
 }
 
 

@@ -1,10 +1,7 @@
-use std::str::FromStr;
-
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 
 use crate::components::common::SpellInfo;
 use crate::components::enums::EnvironmentalType;
-use crate::traits::ToCamel;
 
 #[derive(Debug)]
 pub enum Prefix {
@@ -31,8 +28,7 @@ impl Prefix {
                 }
             }),
             x if x.starts_with("ENVIRONMENTAL") => Self::Environmental(
-                EnvironmentalType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Error parsing Environmental prefix: {}", line[0]))?
+                EnvironmentalType::parse(line[0])?
             ),
             _ => bail!("Unknown prefix: {}", event_type)
         };
