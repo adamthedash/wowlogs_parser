@@ -7,7 +7,7 @@ use strum::EnumString;
 use crate::utils::parse_num;
 
 #[derive(Debug)]
-enum CastType {
+pub enum CastType {
     Local = 2,
     Active = 3,
     Passive = 4,
@@ -16,7 +16,7 @@ enum CastType {
 }
 
 #[derive(Debug, EnumString)]
-enum CreatureType {
+pub enum CreatureType {
     Creature,
     Pet,
     GameObject,

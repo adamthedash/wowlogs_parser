@@ -10,17 +10,17 @@ use crate::utils::{parse_hex, parse_num};
 
 #[derive(Debug)]
 pub struct SpellInfo {
-    spell_id: u64,
-    spell_name: String,
-    spell_school: Vec<SpellSchool>,
+    pub spell_id: u64,
+    pub spell_name: String,
+    pub spell_school: Vec<SpellSchool>,
 }
 
 #[derive(Debug)]
 pub struct Actor {
     pub guid: GUID,
     pub name: String,
-    flags: u64,
-    raid_flags: Option<u64>,
+    pub flags: u64,
+    pub raid_flags: Option<u64>,
 }
 
 impl SpellInfo {

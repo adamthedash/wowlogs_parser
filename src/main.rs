@@ -18,7 +18,7 @@ mod components;
 
 
 /// Parses the entire buffer
-fn parse_file<R: Read>(buf_reader: R, handlers: &mut Vec<Box<dyn EventHandler>>) {
+fn parse_file<R: Read>(buf_reader: R, handlers: &mut [Box<dyn EventHandler>]) {
     let reader = EventParser::new(buf_reader);
 
     reader

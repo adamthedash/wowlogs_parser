@@ -6,11 +6,11 @@ use crate::components::guid::GUID;
 use crate::utils::parse_num;
 
 #[derive(Debug)]
-struct PowerInfo {
-    power_type: Option<PowerType>,
-    current_power: u64,
-    max_power: u64,
-    power_cost: u64,
+pub struct PowerInfo {
+    pub power_type: Option<PowerType>,
+    pub current_power: u64,
+    pub max_power: u64,
+    pub power_cost: u64,
 }
 
 impl PowerInfo {
@@ -34,10 +34,10 @@ impl PowerInfo {
 }
 
 #[derive(Debug)]
-struct Position {
-    x: f32,
-    y: f32,
-    facing: f32,
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
+    pub facing: f32,
 }
 
 impl Position {
@@ -54,18 +54,18 @@ impl Position {
 
 #[derive(Debug)]
 pub struct AdvancedParams {
-    info_guid: Option<GUID>,
-    owner_guid: Option<GUID>,
-    current_hp: u64,
-    max_hp: u64,
-    attack_power: u64,
-    spell_power: u64,
-    armor: u64,
-    absorb: u64,
-    power_info: Vec<PowerInfo>,
-    position: Position,
-    ui_map_id: u64,
-    level_or_ilvl: u64,
+    pub info_guid: Option<GUID>,
+    pub owner_guid: Option<GUID>,
+    pub current_hp: u64,
+    pub max_hp: u64,
+    pub attack_power: u64,
+    pub spell_power: u64,
+    pub armor: u64,
+    pub absorb: u64,
+    pub power_info: Vec<PowerInfo>,
+    pub position: Position,
+    pub ui_map_id: u64,
+    pub level_or_ilvl: u64,
 }
 
 impl AdvancedParams {
