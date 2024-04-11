@@ -21,6 +21,7 @@ pub trait EventHandler {
 }
 
 
+/// Logs out successfully & failed parsed events to stdout & stderr.
 pub struct StdLogger;
 
 impl StdLogger {
@@ -45,6 +46,7 @@ pub struct FileLogger {
     bad_file: File,
 }
 
+/// Logs out successfully & failed parsed events to files.
 impl FileLogger {
     pub(crate) fn new(good_path: &PathBuf, error_path: &PathBuf) -> Result<Self> {
         Ok(Self {
@@ -73,6 +75,7 @@ impl EventHandler for FileLogger {
     }
 }
 
+/// A simple damage tracker
 #[derive(Debug)]
 pub struct DamageTracker {
     accumulated: HashMap<String, u64>,
@@ -92,29 +95,30 @@ impl DamageTracker {
     }
 }
 
+
 impl EventHandler for DamageTracker {
     fn handle(&mut self, event: &Result<Event>) {
         match event {
             Ok(Event {
-                   timestamp: t,
+                   timestamp: time,
                    event_type: EventType::Standard {
-                       source: Some(Actor { name: a, guid: GUID::Player { .. }, .. }),
-                       suffix: Suffix::Damage { amount: x, .. },
+                       source: Some(Actor { name, guid: GUID::Player { .. }, .. }),
+                       suffix: Suffix::Damage { amount: dmg, .. },
                        ..
                    },
                    ..
                }) => {
-                if self.accumulated.is_empty() { self.start_time = Some(*t) }
+                if self.accumulated.is_empty() { self.start_time = Some(*time) }
+                self.latest_time = Some(*time);
 
-                if let Some(acc) = self.accumulated.get_mut(a) {
-                    *acc += x;
-                    self.latest_time = Some(*t);
+                if let Some(total) = self.accumulated.get_mut(name) {
+                    *total += dmg;
                 } else {
-                    self.accumulated.insert(a.clone(), *x);
+                    self.accumulated.insert(name.clone(), *dmg);
                 }
             }
 
-            // Reset on enounter start
+            // Reset on encounter start
             Ok(Event {
                    event_type: EventType::Special {
                        details: special::Special::EncounterStart { .. }, ..
