@@ -15,7 +15,7 @@ pub struct SpellInfo {
 
 #[derive(Debug)]
 pub struct Actor {
-    guid: GUID,
+    pub guid: GUID,
     pub name: String,
     flags: u64,
     raid_flags: Option<u64>,

@@ -238,7 +238,7 @@ impl Suffix {
 
             x if x.ends_with("DISPEL") => Dispel {
                 spell_info: SpellInfo::parse_record(&line[..3])?,
-                aura_type: AuraType::from_str(line[3])
+                aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
@@ -248,7 +248,7 @@ impl Suffix {
 
             x if x.ends_with("STOLEN") => Stolen {
                 spell_info: SpellInfo::parse_record(&line[..3])?,
-                aura_type: AuraType::from_str(line[3])
+                aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
@@ -348,7 +348,6 @@ impl Suffix {
             "ENERGIZE",
             "DRAIN",
             "LEECH",
-            "DISPEL",
             "STOLEN",
             "CAST_SUCCESS",
         ];
@@ -377,6 +376,7 @@ impl Suffix {
             "RESURRECT",
             "EMPOWER_START",
             "EMPOWER_END",
+            "DISPEL",
         ];
 
         let matched = match event_type {

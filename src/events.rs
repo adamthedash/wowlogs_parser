@@ -12,7 +12,7 @@ use crate::special;
 use crate::suffixes::Suffix;
 
 #[derive(Debug)]
-enum EventType {
+pub enum EventType {
     Special {
         name: String,
         details: special::Special,
@@ -91,8 +91,8 @@ impl EventType {
 
 #[derive(Debug)]
 pub struct Event {
-    timestamp: NaiveDateTime,
-    event_type: EventType,
+    pub timestamp: NaiveDateTime,
+    pub event_type: EventType,
 }
 
 impl Event {
