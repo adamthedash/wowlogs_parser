@@ -5,11 +5,13 @@ use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 
-use crate::advanced::AdvancedParams;
-use crate::common_components::Actor;
-use crate::prefixes::Prefix;
-use crate::special;
-use crate::suffixes::Suffix;
+use crate::components::{
+    advanced::AdvancedParams,
+    common::Actor,
+    prefixes::Prefix,
+    special,
+    suffixes::Suffix,
+};
 
 #[derive(Debug)]
 pub enum EventType {
@@ -127,7 +129,7 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
-    use crate::events::{Event, EventType};
+    use crate::components::events::{Event, EventType};
 
     #[test]
     fn parse_event_type() {

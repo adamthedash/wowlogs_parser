@@ -2,9 +2,8 @@ use std::str::FromStr;
 
 use anyhow::{bail, Context, Result};
 
-use crate::common_components::{Actor, SpellInfo};
-use crate::enums::{AuraType, MissType, PowerType, SpellSchool};
-use crate::suffixes::Suffix::{Absorbed, AuraApplied, AuraAppliedDose, AuraBroken, AuraBrokenSpell, AuraRefresh, AuraRemoved, AuraRemovedDose, CastFailed, CastStart, CastSuccess, Create, Damage, DamageLanded, Dispel, DispelFailed, Drain, DurabilityDamage, DurabilityDamageAll, EmpowerEnd, EmpowerInterrupt, EmpowerStart, Energize, ExtraAttacks, Heal, HealAbsorbed, Instakill, Interrupt, Leech, Missed, Resurrect, Stolen, Summon};
+use crate::components::common::{Actor, SpellInfo};
+use crate::components::enums::{AuraType, MissType, PowerType, SpellSchool};
 use crate::traits::ToCamel;
 use crate::utils::{parse_bool, parse_num};
 
@@ -128,7 +127,7 @@ pub enum Suffix {
 impl Suffix {
     pub fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
         let matched = match event_type {
-            x if x.ends_with("DAMAGE") => Damage {
+            x if x.ends_with("DAMAGE") => Self::Damage {
                 amount: parse_num(line[0])?,
                 base_amount: parse_num(line[1])?,
                 overkill: match line[2] {
@@ -144,7 +143,7 @@ impl Suffix {
                 crushing: parse_bool(line[9])?,
             },
 
-            x if x.ends_with("DAMAGE_LANDED") => DamageLanded {
+            x if x.ends_with("DAMAGE_LANDED") => Self::DamageLanded {
                 amount: parse_num(line[0])?,
                 base_amount: parse_num(line[1])?,
                 overkill: match line[2] {
@@ -173,7 +172,7 @@ impl Suffix {
                     _ => (0, 0, false)
                 };
 
-                Missed {
+                Self::Missed {
                     miss_type,
                     offhand: parse_bool(line[1])?,
                     amount_missed,
@@ -182,7 +181,7 @@ impl Suffix {
                 }
             }
 
-            x if x.ends_with("HEAL") => Heal {
+            x if x.ends_with("HEAL") => Self::Heal {
                 amount: parse_num(line[0])?,
                 base_amount: parse_num(line[1])?,
                 overhealing: parse_num(line[2])?,
@@ -190,14 +189,14 @@ impl Suffix {
                 critical: parse_bool(line[4])?,
             },
 
-            x if x.ends_with("HEAL_ABSORBED") => HealAbsorbed {
+            x if x.ends_with("HEAL_ABSORBED") => Self::HealAbsorbed {
                 actor: Actor::parse(&line[..4])?,
                 spell_info: SpellInfo::parse_record(&line[4..7])?,
                 absorbed_amount: parse_num(line[7])?,
                 total_amount: parse_num(line[8])?,
             },
 
-            x if x.ends_with("ABSORBED") => Absorbed {
+            x if x.ends_with("ABSORBED") => Self::Absorbed {
                 absorb_caster: Actor::parse(&line[..4])?.unwrap(),
                 absorb_spell_info: SpellInfo::parse_record(&line[4..7])?,
                 absorbed_amount: parse_num(line[7])?,
@@ -205,7 +204,7 @@ impl Suffix {
                 critical: parse_bool(line[9])?,
             },
 
-            x if x.ends_with("ENERGIZE") => Energize {
+            x if x.ends_with("ENERGIZE") => Self::Energize {
                 amount: parse_num(line[0])?,
                 over_energize: parse_num(line[1])?,
                 power_type: PowerType::parse(line[2])?
@@ -213,7 +212,7 @@ impl Suffix {
                 max_power: parse_num(line[3])?,
             },
 
-            x if x.ends_with("DRAIN") => Drain {
+            x if x.ends_with("DRAIN") => Self::Drain {
                 amount: parse_num(line[0])?,
                 power_type: PowerType::parse(line[1])?
                     .with_context(|| format!("Invalid power type: {}", line[1]))?,
@@ -221,45 +220,45 @@ impl Suffix {
                 max_power: parse_num(line[3])?,
             },
 
-            x if x.ends_with("LEECH") => Leech {
+            x if x.ends_with("LEECH") => Self::Leech {
                 amount: parse_num(line[0])?,
                 power_type: PowerType::parse(line[1])?
                     .with_context(|| format!("Invalid power type: {}", line[1]))?,
                 extra_amount: parse_num(line[2])?,
             },
 
-            x if x.ends_with("EMPOWER_INTERRUPT") => EmpowerInterrupt {
+            x if x.ends_with("EMPOWER_INTERRUPT") => Self::EmpowerInterrupt {
                 empowered_rank: parse_num(line[0])?
             },
 
-            x if x.ends_with("INTERRUPT") => Interrupt {
+            x if x.ends_with("INTERRUPT") => Self::Interrupt {
                 spell_info: SpellInfo::parse_record(&line[..3])?,
             },
 
-            x if x.ends_with("DISPEL") => Dispel {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
-                aura_type: AuraType::from_str(&line[3].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
-            },
-
-            x if x.ends_with("DISPEL_FAILED") => DispelFailed {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
-            },
-
-            x if x.ends_with("STOLEN") => Stolen {
+            x if x.ends_with("DISPEL") => Self::Dispel {
                 spell_info: SpellInfo::parse_record(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
-            x if x.ends_with("EXTRA_ATTACKS") => ExtraAttacks {
+            x if x.ends_with("DISPEL_FAILED") => Self::DispelFailed {
+                spell_info: SpellInfo::parse_record(&line[..3])?,
+            },
+
+            x if x.ends_with("STOLEN") => Self::Stolen {
+                spell_info: SpellInfo::parse_record(&line[..3])?,
+                aura_type: AuraType::from_str(&line[3].to_camel_case())
+                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
+            },
+
+            x if x.ends_with("EXTRA_ATTACKS") => Self::ExtraAttacks {
                 amount: parse_num(line[0])?
             },
 
             x if x.ends_with("AURA_APPLIED") => {
                 let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
-                AuraApplied {
+                Self::AuraApplied {
                     aura_type: AuraType::from_str(&line[0].to_camel_case())
                         .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                     amount,
@@ -269,66 +268,66 @@ impl Suffix {
             x if x.ends_with("AURA_REMOVED") => {
                 let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
-                AuraRemoved {
+                Self::AuraRemoved {
                     aura_type: AuraType::from_str(&line[0].to_camel_case())
                         .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                     amount,
                 }
             }
 
-            x if x.ends_with("AURA_APPLIED_DOSE") => AuraAppliedDose {
+            x if x.ends_with("AURA_APPLIED_DOSE") => Self::AuraAppliedDose {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                 amount: parse_num(line[1])?,
             },
 
-            x if x.ends_with("AURA_REMOVED_DOSE") => AuraRemovedDose {
+            x if x.ends_with("AURA_REMOVED_DOSE") => Self::AuraRemovedDose {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
                 amount: parse_num(line[1])?,
             },
 
-            x if x.ends_with("AURA_REFRESH") => AuraRefresh {
+            x if x.ends_with("AURA_REFRESH") => Self::AuraRefresh {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
             },
 
-            x if x.ends_with("AURA_BROKEN") => AuraBroken {
+            x if x.ends_with("AURA_BROKEN") => Self::AuraBroken {
                 aura_type: AuraType::from_str(&line[0].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
             },
 
-            x if x.ends_with("AURA_BROKEN_SPELL") => AuraBrokenSpell {
+            x if x.ends_with("AURA_BROKEN_SPELL") => Self::AuraBrokenSpell {
                 spell_info: SpellInfo::parse_record(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
-            x if x.ends_with("CAST_START") => CastStart,
+            x if x.ends_with("CAST_START") => Self::CastStart,
 
-            x if x.ends_with("CAST_SUCCESS") => CastSuccess,
+            x if x.ends_with("CAST_SUCCESS") => Self::CastSuccess,
 
-            x if x.ends_with("CAST_FAILED") => CastFailed {
+            x if x.ends_with("CAST_FAILED") => Self::CastFailed {
                 failed_type: line[0].to_string(),
             },
 
-            x if x.ends_with("INSTAKILL") => Instakill {
+            x if x.ends_with("INSTAKILL") => Self::Instakill {
                 unconscious_on_death: parse_bool(line[0])?,
             },
 
-            x if x.ends_with("DURABILITY_DAMAGE") => DurabilityDamage,
+            x if x.ends_with("DURABILITY_DAMAGE") => Self::DurabilityDamage,
 
-            x if x.ends_with("DURABILITY_DAMAGE_ALL") => DurabilityDamageAll,
+            x if x.ends_with("DURABILITY_DAMAGE_ALL") => Self::DurabilityDamageAll,
 
-            x if x.ends_with("CREATE") => Create,
+            x if x.ends_with("CREATE") => Self::Create,
 
-            x if x.ends_with("SUMMON") => Summon,
+            x if x.ends_with("SUMMON") => Self::Summon,
 
-            x if x.ends_with("RESURRECT") => Resurrect,
+            x if x.ends_with("RESURRECT") => Self::Resurrect,
 
-            x if x.ends_with("EMPOWER_START") => EmpowerStart,
+            x if x.ends_with("EMPOWER_START") => Self::EmpowerStart,
 
-            x if x.ends_with("EMPOWER_END") => EmpowerEnd {
+            x if x.ends_with("EMPOWER_END") => Self::EmpowerEnd {
                 empowered_rank: parse_num(line[0])?,
             },
 
@@ -391,7 +390,7 @@ impl Suffix {
 
 #[cfg(test)]
 mod tests {
-    use crate::suffixes::Suffix;
+    use super::Suffix;
 
     #[test]
     fn parse() {

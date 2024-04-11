@@ -1,8 +1,9 @@
 use anyhow::{bail, Result};
 
-use crate::common_components::Actor;
-use crate::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
+use crate::components::common::Actor;
 use crate::utils::{parse_bool, parse_num};
+
+use super::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
 
 #[derive(Debug)]
 pub enum Special {
@@ -206,7 +207,7 @@ impl Special {
 
 #[cfg(test)]
 mod tests {
-    use crate::special::Special;
+    use super::Special;
 
     #[test]
     fn parse() {

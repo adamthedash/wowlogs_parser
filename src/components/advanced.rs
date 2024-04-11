@@ -1,8 +1,8 @@
 use anyhow::Result;
 use itertools::izip;
 
-use crate::enums::PowerType;
-use crate::guid::GUID;
+use crate::components::enums::PowerType;
+use crate::components::guid::GUID;
 use crate::utils::parse_num;
 
 #[derive(Debug)]
@@ -91,7 +91,7 @@ impl AdvancedParams {
 
 #[cfg(test)]
 mod tests {
-    use crate::advanced::{AdvancedParams, Position, PowerInfo};
+    use crate::components::advanced::{AdvancedParams, Position, PowerInfo};
 
     #[test]
     fn parse_power_info() {

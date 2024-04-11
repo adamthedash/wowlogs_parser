@@ -3,7 +3,7 @@ use std::io::Read;
 use anyhow::Result;
 use itertools::Itertools;
 
-use crate::events::Event;
+use crate::components::events::Event;
 
 pub struct EventParser<R> {
     reader: csv::Reader<R>,

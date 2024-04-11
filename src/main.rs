@@ -10,18 +10,11 @@ use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use crate::consumers::{DamageTracker, EventHandler, FileLogger};
 use crate::parser::EventParser;
 
-mod enums;
 mod traits;
-mod prefixes;
-mod common_components;
-mod guid;
-mod suffixes;
 mod utils;
-mod special;
-mod advanced;
-mod events;
 mod parser;
 mod consumers;
+mod components;
 
 
 /// Parses the entire buffer

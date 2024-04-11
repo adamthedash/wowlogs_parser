@@ -118,8 +118,8 @@ pub enum EnvironmentalType {
 mod tests {
     use std::str::FromStr;
 
-    use crate::enums::{MissType, PowerType, SpellSchool};
-    use crate::enums::SpellSchool::{Arcane, Holy, Nature, Shadow};
+    use crate::components::enums::{MissType, PowerType, SpellSchool};
+    use crate::components::enums::SpellSchool::{Arcane, Holy, Nature, Shadow};
     use crate::traits::ToCamel;
 
     #[test]

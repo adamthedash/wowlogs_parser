@@ -8,11 +8,11 @@ use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 
-use crate::common_components::Actor;
-use crate::events::{Event, EventType};
-use crate::guid::GUID;
-use crate::special;
-use crate::suffixes::Suffix;
+use crate::components::common::Actor;
+use crate::components::events::{Event, EventType};
+use crate::components::guid::GUID;
+use crate::components::special;
+use crate::components::suffixes::Suffix;
 
 pub trait EventHandler {
     fn handle(&mut self, event: &Result<Event>);
@@ -132,7 +132,7 @@ impl EventHandler for DamageTracker {
         } else { 1 };
 
         let s = self.accumulated.iter()
-            .sorted_by_key(|(k, &v)| v).rev()
+            .sorted_by_key(|(_, &v)| v).rev()
             .map(|(k, v)| format!("{:>30}:{:>10}|{:>10.0}{:>10}", k, v, (*v as f64) / (duration as f64), "💯"))
             .join("\n");
 

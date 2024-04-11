@@ -2,8 +2,10 @@ use std::u64;
 
 use anyhow::{Context, Result};
 
-use crate::enums::SpellSchool;
-use crate::guid::GUID;
+use crate::components::{
+    enums::SpellSchool,
+    guid::GUID,
+};
 use crate::utils::{parse_hex, parse_num};
 
 #[derive(Debug)]
@@ -61,7 +63,7 @@ impl Actor {
 
 #[cfg(test)]
 mod tests {
-    use crate::common_components::{Actor, SpellInfo};
+    use crate::components::common::{Actor, SpellInfo};
 
     #[test]
     fn parse_spell_info() {

@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use anyhow::{bail, Context, Result};
 
-use crate::common_components::SpellInfo;
-use crate::enums::EnvironmentalType;
+use crate::components::common::SpellInfo;
+use crate::components::enums::EnvironmentalType;
 use crate::traits::ToCamel;
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl Prefix {
 
 #[cfg(test)]
 mod tests {
-    use crate::prefixes::Prefix;
+    use super::Prefix;
 
     #[test]
     fn parse() {
