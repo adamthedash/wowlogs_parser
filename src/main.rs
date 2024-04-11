@@ -1,13 +1,15 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use clap::Parser;
 use itertools::Itertools;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::consumers::{DamageTracker, EventHandler, FileLogger};
+use crate::cli::{Cli, OutputMode, ReadMode};
+use crate::consumers::{DamageTracker, EventHandler, FileLogger, StdLogger};
 use crate::parser::EventParser;
 
 mod traits;
@@ -15,6 +17,7 @@ mod utils;
 mod parser;
 mod consumers;
 mod components;
+mod cli;
 
 
 /// Parses the entire buffer
@@ -30,7 +33,27 @@ fn parse_file<R: Read>(buf_reader: R, handlers: &mut [Box<dyn EventHandler>]) {
         });
 }
 
-fn watch<P: AsRef<Path>>(path: P) -> Result<()> {
+/// Processes an entire file
+fn process<P: AsRef<Path> + Debug>(path: P, handlers: &mut [Box<dyn EventHandler>]) -> Result<()> {
+    let file = File::open(&path)
+        .with_context(|| format!("Failed to open file: {:?}", path))?;
+
+    let reader = EventParser::new(file);
+
+    reader
+        .for_each(|e| {
+            handlers.iter_mut()
+                .for_each(|h| {
+                    h.handle(&e);
+                });
+        });
+
+    Ok(())
+}
+
+
+/// Watches a logile and parses them as they stream in
+fn watch<P: AsRef<Path>>(path: P, handlers: &mut [Box<dyn EventHandler>]) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // Automatically select the best implementation for your platform.
@@ -45,23 +68,13 @@ fn watch<P: AsRef<Path>>(path: P) -> Result<()> {
     let mut prev_size = File::open(path)?.metadata()?.len();
 
 
-    let mut handlers: Vec<Box<dyn EventHandler>> = vec![
-        // Box::new(StdLogger::new()),
-        Box::new(FileLogger::new(
-            &PathBuf::from_str("good.txt")?,
-            &PathBuf::from_str("bad.txt")?,
-        )?),
-        Box::new(DamageTracker::new()),
-    ];
-
-
     for event in rx.iter().filter_map(Result::ok) {
         let mut file = File::open(&event.paths[0])?;
         let new_size = file.metadata()?.len();
 
         file.seek(SeekFrom::Current(prev_size as i64))?;
 
-        parse_file(BufReader::new(file), &mut handlers);
+        parse_file(BufReader::new(file), handlers);
         println!("{}", handlers.iter().filter_map(|h| h.display()).join("\n---\n"));
 
         prev_size = new_size;
@@ -70,9 +83,30 @@ fn watch<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
+fn execute(args: Cli) {
+    // Handlers
+    let mut handlers: Vec<Box<dyn EventHandler>> = vec![
+        Box::new(DamageTracker::new()),
+    ];
+
+    // Output mode
+    handlers.push(match args.output_mode {
+        OutputMode::Std => Box::new(StdLogger::new()),
+        OutputMode::File { good_path, failed_path } =>
+            Box::new(FileLogger::new(&good_path, &failed_path).unwrap())
+    });
+
+    // Inputs
+    match args.read_mode {
+        ReadMode::Watch => watch(args.wowlog_path, &mut handlers).unwrap(),
+        ReadMode::Process => process(args.wowlog_path, &mut handlers).unwrap(),
+    }
+}
+
+
 fn main() {
-    let wowlog_path = PathBuf::from_str(r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-041024_185840.txt").unwrap();
-    watch(wowlog_path).unwrap();
+    let args = Cli::parse();
+    execute(args);
 }
 
 
@@ -82,8 +116,11 @@ mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
 
+    use clap::Parser;
+
+    use crate::{execute, parse_file};
+    use crate::cli::Cli;
     use crate::consumers::{EventHandler, StdLogger};
-    use crate::parse_file;
     use crate::parser::EventParser;
 
     #[test]
@@ -94,7 +131,7 @@ mod tests {
             .expect("Error loading wowlogs file.");
 
         let mut handlers: Vec<Box<dyn EventHandler>> = vec![
-            Box::new(StdLogger::new()),
+            // Box::new(StdLogger::new()),
             // Box::new(DamageTracker::new()),
         ];
 
@@ -103,13 +140,13 @@ mod tests {
 
     #[test]
     fn test2() {
-        let wowlog_path = PathBuf::from_str("/test_data/WoWCombatLog-021524_201412.txt").unwrap();
+        let wowlog_path = PathBuf::from_str("test_data/WoWCombatLog-021524_201412.txt").unwrap();
 
         let file = File::open(wowlog_path)
             .expect("Error loading wowlogs file.");
 
         let mut handlers: Vec<Box<dyn EventHandler>> = vec![
-            Box::new(StdLogger::new()),
+            // Box::new(StdLogger::new()),
             // Box::new(DamageTracker::new()),
         ];
 
@@ -145,6 +182,23 @@ mod tests {
         for event in EventParser::new(file) {
             println!("{:?}", event.unwrap());
         }
+    }
+
+    #[test]
+    fn test_environ_dam() {
+        let file = ["4/11 21:38:05.638  ENVIRONMENTAL_DAMAGE", "0000000000000000", "nil", "0x80000000", "0x80000000", "Player-1329-0709FDCE", "Ðedoxi-Ravencrest", "0x518", "0x0", "Player-1329-0709FDCE", "0000000000000000", "104995", "121120", "3064", "1201", "1167", "0", "2", "100", "100", "0", "156.41", "-909.05", "2112", "3.8629", "263", "Falling", "16125", "16125", "0", "1", "0", "0", "0", "nil", "nil", "nil\n"].join(",");
+        let file = file.as_bytes();
+
+        for event in EventParser::new(file) {
+            println!("{:?}", event.unwrap());
+        }
+    }
+
+    #[test]
+    fn test_real() {
+        let args = Cli::parse_from(["wow.exe", r"E:\Games\Blizzard\World of Warcraft\_retail_\Logs\WoWCombatLog-041124_213746.txt", "process", "file", "good2.txt", "bad2.txt"]);
+        println!("{:?}", args);
+        execute(args);
     }
 }
 

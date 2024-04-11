@@ -334,10 +334,10 @@ impl Suffix {
             "ENERGIZE",
             "DRAIN",
             "LEECH",
-            "STOLEN",
             "CAST_SUCCESS",
         ];
         let non_advanced_suffixes = [
+            "STOLEN",
             "AURA_APPLIED",
             "AURA_REMOVED",
             "MISSED",

@@ -7,19 +7,6 @@ use super::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemov
 
 #[derive(Debug)]
 pub enum Special {
-    // todo: these things
-    // DamageSplit {
-    //     spell_info: SpellInfo,
-    //     suffixes: Suffix::Damage,
-    // },
-    // DamageShield {
-    //     spell_info: SpellInfo,
-    //     suffixes: Suffix::Damage,
-    // },
-    // DamageShieldMissed {
-    //     spell_info: SpellInfo,
-    //     suffixes: Suffix::Missed,
-    // },
     EnchantApplied {
         source: Option<Actor>,
         target: Option<Actor>,
