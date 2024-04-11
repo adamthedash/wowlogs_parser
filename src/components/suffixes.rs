@@ -160,8 +160,7 @@ impl Suffix {
             },
 
             x if x.ends_with("MISSED") => {
-                let miss_type = MissType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Failed to parse MissType: {}", line[0]))?;
+                let miss_type = MissType::parse(line[0])?;
 
                 let (amount_missed, base_amount, critical) = match miss_type {
                     MissType::Absorb => (

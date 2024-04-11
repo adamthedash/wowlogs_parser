@@ -96,6 +96,13 @@ pub enum MissType {
     Resist,
 }
 
+impl MissType {
+    pub fn parse(s: &str) -> Result<Self> {
+        MissType::from_str(&s.to_camel_case())
+            .with_context(|| format!("Failed to parse MissType: {}", s))
+    }
+}
+
 /// https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#Aura_Type
 #[derive(Debug, EnumString)]
 pub enum AuraType {
@@ -124,11 +131,8 @@ impl EnvironmentalType {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use crate::components::enums::{MissType, PowerType, SpellSchool};
     use crate::components::enums::SpellSchool::{Arcane, Holy, Nature, Shadow};
-    use crate::traits::ToCamel;
 
     #[test]
     fn parse_spell_school() {
@@ -146,7 +150,6 @@ mod tests {
 
     #[test]
     fn parse() {
-        assert_eq!(MissType::from_str("Absorb"), Ok(MissType::Absorb));
-        assert_eq!(MissType::from_str(&"ABSORB".to_camel_case()), Ok(MissType::Absorb));
+        assert_eq!(MissType::parse("ABSORB").unwrap(), MissType::Absorb);
     }
 }
