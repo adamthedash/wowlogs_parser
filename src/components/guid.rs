@@ -23,6 +23,12 @@ pub enum CreatureType {
     Vehicle,
 }
 
+impl CreatureType {
+    pub fn parse(s: &str) -> Result<Self> {
+        CreatureType::from_str(s).with_context(|| format!("Error parsing CreatureType: {}", s))
+    }
+}
+
 
 #[derive(Debug)]
 pub enum GUID {
@@ -85,8 +91,7 @@ impl GUID {
                 },
             "Pet" | "Creature" | "GameObject" | "Vehicle" =>
                 Self::Creature {
-                    unit_type: CreatureType::from_str(parts[0])
-                        .with_context(|| format!("Error parsing CreatureType: {}", parts[0]))?,
+                    unit_type: CreatureType::parse(parts[0])?,
                     server_id: parse_num(parts[2])?,
                     instance_id: parse_num(parts[3])?,
                     zone_uid: parse_num(parts[4])?,
