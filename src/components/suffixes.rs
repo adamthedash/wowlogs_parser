@@ -191,14 +191,14 @@ impl Suffix {
 
             x if x.ends_with("HEAL_ABSORBED") => Self::HealAbsorbed {
                 actor: Actor::parse(&line[..4])?,
-                spell_info: SpellInfo::parse_record(&line[4..7])?,
+                spell_info: SpellInfo::parse(&line[4..7])?,
                 absorbed_amount: parse_num(line[7])?,
                 total_amount: parse_num(line[8])?,
             },
 
             x if x.ends_with("ABSORBED") => Self::Absorbed {
                 absorb_caster: Actor::parse(&line[..4])?.unwrap(),
-                absorb_spell_info: SpellInfo::parse_record(&line[4..7])?,
+                absorb_spell_info: SpellInfo::parse(&line[4..7])?,
                 absorbed_amount: parse_num(line[7])?,
                 base_amount: parse_num(line[8])?,
                 critical: parse_bool(line[9])?,
@@ -232,21 +232,21 @@ impl Suffix {
             },
 
             x if x.ends_with("INTERRUPT") => Self::Interrupt {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
+                spell_info: SpellInfo::parse(&line[..3])?,
             },
 
             x if x.ends_with("DISPEL") => Self::Dispel {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
+                spell_info: SpellInfo::parse(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
 
             x if x.ends_with("DISPEL_FAILED") => Self::DispelFailed {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
+                spell_info: SpellInfo::parse(&line[..3])?,
             },
 
             x if x.ends_with("STOLEN") => Self::Stolen {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
+                spell_info: SpellInfo::parse(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },
@@ -298,7 +298,7 @@ impl Suffix {
             },
 
             x if x.ends_with("AURA_BROKEN_SPELL") => Self::AuraBrokenSpell {
-                spell_info: SpellInfo::parse_record(&line[..3])?,
+                spell_info: SpellInfo::parse(&line[..3])?,
                 aura_type: AuraType::from_str(&line[3].to_camel_case())
                     .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
             },

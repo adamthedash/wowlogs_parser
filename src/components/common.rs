@@ -24,7 +24,7 @@ pub struct Actor {
 }
 
 impl SpellInfo {
-    pub fn parse_record(line: &[&str]) -> Result<Self> {
+    pub fn parse(line: &[&str]) -> Result<Self> {
         assert_eq!(line.len(), 3);
 
         let spell_school = SpellSchool::parse(line[2])?
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn parse_spell_info() {
         let line = vec!["8936", "Regrowth", "0x8"];
-        let _parsed = SpellInfo::parse_record(&line);
+        let _parsed = SpellInfo::parse(&line);
     }
 
     #[test]

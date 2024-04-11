@@ -20,13 +20,13 @@ impl Prefix {
     pub(crate) fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
         let matched = match event_type {
             x if x.starts_with("SWING") => Self::Swing,
-            x if x.starts_with("RANGE") => Self::Range(SpellInfo::parse_record(&line[..3])?),
-            x if x.starts_with("SPELL_PERIODIC") => Self::SpellPeriodic(SpellInfo::parse_record(&line[..3])?),
-            x if x.starts_with("SPELL_BUILDING") => Self::SpellBuilding(SpellInfo::parse_record(&line[..3])?),
+            x if x.starts_with("RANGE") => Self::Range(SpellInfo::parse(&line[..3])?),
+            x if x.starts_with("SPELL_PERIODIC") => Self::SpellPeriodic(SpellInfo::parse(&line[..3])?),
+            x if x.starts_with("SPELL_BUILDING") => Self::SpellBuilding(SpellInfo::parse(&line[..3])?),
             x if x.starts_with("SPELL") => Self::Spell({
                 match line.len() {
                     0 => None,
-                    3 => Some(SpellInfo::parse_record(&line[..3])?),
+                    3 => Some(SpellInfo::parse(&line[..3])?),
                     _ => bail!("Bad number of entries for Spell")
                 }
             }),
