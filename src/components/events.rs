@@ -48,11 +48,11 @@ impl EventType {
         ]);
 
 
-        let (name, event_type) = if specially_named_events.contains_key(&event_type) {
-            (event_type, *specially_named_events.get(&event_type).unwrap())
-        } else {
-            (event_type, event_type)
+        let (name, event_type) = match specially_named_events.get(&event_type) {
+            None => (event_type, event_type),
+            Some(&val) => (event_type, val)
         };
+
 
         // Fallback to standard one
         let source = Actor::parse(&line[..4])?;
@@ -113,7 +113,7 @@ impl Event {
             // todo: horrible hacky way of date parsing
             let date = ["2024/ ", date].join("");
             let datetime = NaiveDateTime::parse_from_str(date.as_str(), "%Y/%_m/%d %H:%M:%S%.3f")
-                .expect("Failed to parse date.");
+                .with_context(|| "Failed to parse date.")?;
 
             (datetime, event_type)
         };
