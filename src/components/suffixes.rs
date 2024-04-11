@@ -1,10 +1,7 @@
-use std::str::FromStr;
-
 use anyhow::{bail, Context, Result};
 
 use crate::components::common::{Actor, SpellInfo};
 use crate::components::enums::{AuraType, MissType, PowerType, SpellSchool};
-use crate::traits::ToCamel;
 use crate::utils::{parse_bool, parse_num};
 
 #[derive(Debug)]
@@ -236,8 +233,7 @@ impl Suffix {
 
             x if x.ends_with("DISPEL") => Self::Dispel {
                 spell_info: SpellInfo::parse(&line[..3])?,
-                aura_type: AuraType::from_str(&line[3].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
+                aura_type: AuraType::parse(line[3])?,
             },
 
             x if x.ends_with("DISPEL_FAILED") => Self::DispelFailed {
@@ -246,8 +242,7 @@ impl Suffix {
 
             x if x.ends_with("STOLEN") => Self::Stolen {
                 spell_info: SpellInfo::parse(&line[..3])?,
-                aura_type: AuraType::from_str(&line[3].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
+                aura_type: AuraType::parse(line[3])?,
             },
 
             x if x.ends_with("EXTRA_ATTACKS") => Self::ExtraAttacks {
@@ -258,8 +253,7 @@ impl Suffix {
                 let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
                 Self::AuraApplied {
-                    aura_type: AuraType::from_str(&line[0].to_camel_case())
-                        .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                    aura_type: AuraType::parse(line[0])?,
                     amount,
                 }
             }
@@ -268,38 +262,32 @@ impl Suffix {
                 let amount = if line.len() < 2 { None } else { Some(parse_num(line[1])?) };
 
                 Self::AuraRemoved {
-                    aura_type: AuraType::from_str(&line[0].to_camel_case())
-                        .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                    aura_type: AuraType::parse(line[0])?,
                     amount,
                 }
             }
 
             x if x.ends_with("AURA_APPLIED_DOSE") => Self::AuraAppliedDose {
-                aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                aura_type: AuraType::parse(line[0])?,
                 amount: parse_num(line[1])?,
             },
 
             x if x.ends_with("AURA_REMOVED_DOSE") => Self::AuraRemovedDose {
-                aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                aura_type: AuraType::parse(line[0])?,
                 amount: parse_num(line[1])?,
             },
 
             x if x.ends_with("AURA_REFRESH") => Self::AuraRefresh {
-                aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                aura_type: AuraType::parse(line[0])?,
             },
 
             x if x.ends_with("AURA_BROKEN") => Self::AuraBroken {
-                aura_type: AuraType::from_str(&line[0].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[0]))?,
+                aura_type: AuraType::parse(line[0])?,
             },
 
             x if x.ends_with("AURA_BROKEN_SPELL") => Self::AuraBrokenSpell {
                 spell_info: SpellInfo::parse(&line[..3])?,
-                aura_type: AuraType::from_str(&line[3].to_camel_case())
-                    .with_context(|| format!("Failed to parse AuraType: {}", line[3]))?,
+                aura_type: AuraType::parse(line[3])?,
             },
 
             x if x.ends_with("CAST_START") => Self::CastStart,

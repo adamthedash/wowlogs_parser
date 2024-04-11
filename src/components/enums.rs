@@ -110,6 +110,13 @@ pub enum AuraType {
     Debuff,
 }
 
+impl AuraType {
+    pub fn parse(s: &str) -> Result<Self> {
+        AuraType::from_str(&s.to_camel_case())
+            .with_context(|| format!("Failed to parse AuraType: {}", s))
+    }
+}
+
 /// https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#Environmental_Type
 #[derive(Debug, EnumString)]
 pub enum EnvironmentalType {
