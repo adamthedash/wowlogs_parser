@@ -21,6 +21,7 @@ pub enum CreatureType {
     Pet,
     GameObject,
     Vehicle,
+    Corpse,
 }
 
 impl CreatureType {
@@ -90,7 +91,7 @@ impl GUID {
                     server_id: parse_num(parts[1])?,
                     player_uid: parts[2].to_string(),
                 },
-            "Pet" | "Creature" | "GameObject" | "Vehicle" =>
+            "Pet" | "Creature" | "GameObject" | "Vehicle" | "Corpse" => 
                 Self::Creature {
                     unit_type: CreatureType::parse(parts[0])?,
                     server_id: parse_num(parts[2])?,

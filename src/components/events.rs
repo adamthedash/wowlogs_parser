@@ -158,18 +158,39 @@ mod tests {
     fn parse_event() {
         let line = vec!["4/6 14:09:44.867  SPELL_PERIODIC_HEAL", "Player-1393-077C088C", "Mubaku-BronzeDragonflight", "0x514", "0x0", "Creature-0-1469-2549-12530-210177-000011428F", "Tormented Ancient", "0xa18", "0x0", "8936", "Regrowth", "0x8", "Creature-0-1469-2549-12530-210177-000011428F", "0000000000000000", "5927873", "7468728", "0", "0", "5043", "0", "1", "0", "0", "0", "3295.44", "13209.11", "2232", "3.4506", "72", "2557", "2557", "0", "0", "nil"];
         let parsed = Event::parse(&line);
-        println!("{:?}", parsed);
+        println!("{:?}", parsed.unwrap());
 
         let line = vec!["COMBAT_LOG_VERSION", "20", "ADVANCED_LOG_ENABLED", "1", "BUILD_VERSION", "10.2.6", "PROJECT_ID", "1"];
         let parsed = Event::parse(&line);
-        println!("{:?}", parsed);
+        println!("{:?}", parsed.unwrap());
 
         let line = vec!["4/6 14:09:44.867  COMBAT_LOG_VERSION", "20", "ADVANCED_LOG_ENABLED", "1", "BUILD_VERSION", "10.2.6", "PROJECT_ID", "1"];
         let parsed = Event::parse(&line);
-        println!("{:?}", parsed);
+        println!("{:?}", parsed.unwrap());
 
         let line = vec!["4/6 14:02:07.362  SWING_MISSED", "Player-1335-0A264B4C", "Sønike-Ysondre", "0x514", "0x0", "Creature-0-1469-2549-12530-209333-000011428A", "Gnarlroot", "0x10a48", "0x0", "MISS", "1"];
         let parsed = Event::parse(&line);
-        println!("{:?}", parsed);
+        println!("{:?}", parsed.unwrap());
+    }
+
+    #[test]
+    fn parse_emote() {
+        let line = vec!["4/11 22:47:58.605  EMOTE", "Player-1329-09AF0ACF", "Adamthebash", "Player-1329-09AF0ACF", "Adamthebash", "Turn back! The Emerald Dream is clouding your mind..."];
+        let parsed = Event::parse(&line);
+        println!("{:?}", parsed.unwrap());
+    }
+
+    #[test]
+    fn parse_env_damage() {
+        let line = vec!["4/11 22:42:01.100  ENVIRONMENTAL_DAMAGE", "0000000000000000", "nil", "0x80000000", "0x80000000", "Player-1329-070EBCFC", "Naladrem-Ravencrest", "0x518", "0x0", "Player-1329-070EBCFC", "0000000000000000", "815216", "866544", "14879", "1421", "5217", "0", "17", "109", "120", "0", "-931.46", "2546.12", "2133", "4.8479", "484", "Falling", "51328", "51328", "0", "1", "0", "0", "0", "nil", "nil", "nil"];
+        let parsed = Event::parse(&line);
+        println!("{:?}", parsed.unwrap());
+    }
+
+    #[test]
+    fn parse_bres() {
+        let line = vec!["4/11 22:38:54.708  SPELL_CAST_SUCCESS", "Player-1329-09AF0ACF", "Adamthebash-Ravencrest", "0x511", "0x0", "Corpse-0-1465-2454-103-0-000018584E", "Unknown", "0x4228", "0x0", "20484", "Rebirth", "0x8", "Player-1329-09AF0ACF", "0000000000000000", "732698", "846460", "16347", "15718", "5632", "0", "0", "250000", "250000", "5000", "66.53", "3330.43", "2133", "4.7368", "486"];
+        let parsed = Event::parse(&line);
+        println!("{:?}", parsed.unwrap());
     }
 }
