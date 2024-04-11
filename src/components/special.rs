@@ -1,9 +1,10 @@
 use anyhow::{bail, Result};
 
 use crate::components::common::Actor;
+use crate::components::guid::GUID;
 use crate::utils::{parse_bool, parse_num};
 
-use super::special::Special::{CombatLogInfo, Emote, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
+use super::special::Special::{CombatLogInfo, EmoteEnvironmental, EmoteStandard, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
 
 #[derive(Debug)]
 pub enum Special {
@@ -84,8 +85,15 @@ pub enum Special {
     WorldMarkerRemoved {
         marker: u64
     },
-    Emote {
+    EmoteStandard {
         actor: Option<Actor>,
+        text: String,
+    },
+    EmoteEnvironmental {
+        source_guid: Option<GUID>,
+        source_name: String,
+        target_guid: Option<GUID>,
+        target_name: String,
         text: String,
     },
 }
@@ -179,10 +187,21 @@ impl Special {
             "WORLD_MARKER_REMOVED" => WorldMarkerRemoved {
                 marker: parse_num(line[0])?,
             },
-            "EMOTE" => Emote {
-                actor: Actor::parse(&line[..4])?,
-                text: line[4].to_string(),
-            },
+            "EMOTE" => {
+                match GUID::parse(line[2]) {
+                    Ok(g) => EmoteEnvironmental {
+                        source_guid: GUID::parse(line[0])?,
+                        source_name: line[1].to_string(),
+                        target_guid: g,
+                        target_name: line[3].to_string(),
+                        text: line[4].to_string(),
+                    },
+                    Err(_) => EmoteStandard {
+                        actor: Actor::parse(&line[..4])?,
+                        text: line[4].to_string(),
+                    }
+                }
+            }
 
             _ => bail!("Unknown special event: {}", event_type)
         };

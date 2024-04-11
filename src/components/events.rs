@@ -58,24 +58,36 @@ impl EventType {
         let source = Actor::parse(&line[..4])?;
         let target = Actor::parse(&line[4..8])?;
 
-        let to_consume = match event_type {
-            // Special case: ABSORB may or may not contain spell info
-            // we have no way to tell without attempting to parse and catching fails
-            e if e == "SPELL_ABSORBED"
-                && u64::from_str(line[8]).is_err() => 0,
-            _ => Prefix::entries_to_consume(event_type)?
-        };
 
-        let prefix = Prefix::parse(event_type, &line[8..8 + to_consume])?;
-        let mut offset = 8 + to_consume;
+        let (prefix, advanced, offset) = if name == "ENVIRONMENTAL_DAMAGE" {
+            // ENVIRONMENTAL_DAMAGE has spellinfo & advanced params flipped order /facepalm/
+            let prefix = Prefix::parse(event_type, &line[25..26])?;
+            let advanced = Some(AdvancedParams::parse(&line[8..25])?);
 
-        let advanced = if Suffix::has_advanced_params(event_type)? {
-            let a = AdvancedParams::parse(&line[offset..offset + 17])?;
-            offset += 17;
-            Some(a)
+            (prefix, advanced, 26)
         } else {
-            None
+            let to_consume = match event_type {
+                // Special case: ABSORB may or may not contain spell info
+                // we have no way to tell without attempting to parse and catching fails
+                e if e == "SPELL_ABSORBED"
+                    && u64::from_str(line[8]).is_err() => 0,
+                _ => Prefix::entries_to_consume(event_type)?
+            };
+
+            let prefix = Prefix::parse(event_type, &line[8..8 + to_consume])?;
+            let mut offset = 8 + to_consume;
+
+            let advanced = if Suffix::has_advanced_params(event_type)? {
+                let a = AdvancedParams::parse(&line[offset..offset + 17])?;
+                offset += 17;
+                Some(a)
+            } else {
+                None
+            };
+
+            (prefix, advanced, offset)
         };
+
 
         let suffixes = Suffix::parse(event_type, &line[offset..])?;
 
@@ -174,7 +186,14 @@ mod tests {
     }
 
     #[test]
-    fn parse_emote() {
+    fn parse_emote_player() {
+        let line = vec!["4/11 22:19:57.499  EMOTE", "Creature-0-1465-2444-137-194909-00009853CD", "Feather-Ruffling Duck", "0000000000000000", "nil", "Take control of the Feather Ruffling Duck!"];
+        let parsed = Event::parse(&line);
+        println!("{:?}", parsed.unwrap());
+    }
+
+    #[test]
+    fn parse_emote_env() {
         let line = vec!["4/11 22:47:58.605  EMOTE", "Player-1329-09AF0ACF", "Adamthebash", "Player-1329-09AF0ACF", "Adamthebash", "Turn back! The Emerald Dream is clouding your mind..."];
         let parsed = Event::parse(&line);
         println!("{:?}", parsed.unwrap());

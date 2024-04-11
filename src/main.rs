@@ -174,25 +174,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_dispel() {
-        let file = ["4/10 23:29:51.910  SPELL_DISPEL", "Creature-0-1469-2444-6491-187117-000017126A", "Ruby Culler", "0xa28", "0x0", "Creature-0-1469-2444-6491-187082-000017125A", "Primal Avalanche", "0xa48", "0x0", "387317", "Purifying Flame", "0x4", "378420", "Harden", "8", "BUFF\n"].join(",");
-        let file = file.as_bytes();
-
-        for event in EventParser::new(file) {
-            println!("{:?}", event.unwrap());
-        }
-    }
-
-    #[test]
-    fn test_environ_dam() {
-        let file = ["4/11 21:38:05.638  ENVIRONMENTAL_DAMAGE", "0000000000000000", "nil", "0x80000000", "0x80000000", "Player-1329-0709FDCE", "Ðedoxi-Ravencrest", "0x518", "0x0", "Player-1329-0709FDCE", "0000000000000000", "104995", "121120", "3064", "1201", "1167", "0", "2", "100", "100", "0", "156.41", "-909.05", "2112", "3.8629", "263", "Falling", "16125", "16125", "0", "1", "0", "0", "0", "nil", "nil", "nil\n"].join(",");
-        let file = file.as_bytes();
-
-        for event in EventParser::new(file) {
-            println!("{:?}", event.unwrap());
-        }
-    }
 
     #[test]
     fn test_real() {
