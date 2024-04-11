@@ -31,6 +31,7 @@ impl CreatureType {
 
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum GUID {
     BattlePet {
         id: u64

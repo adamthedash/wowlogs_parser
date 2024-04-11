@@ -60,10 +60,10 @@ impl EventHandler for FileLogger {
     fn handle(&mut self, event: &Result<Event>) {
         match event {
             Ok(x) => {
-                self.good_file.write(format!("{:?}\n", x).as_bytes());
+                let _ = self.good_file.write(format!("{:?}\n", x).as_bytes());
             },
             Err(x) => {
-                self.bad_file.write(format!("{:?}\n", x).as_bytes());
+                let _ = self.bad_file.write(format!("{:?}\n", x).as_bytes());
             }
         };
     }
