@@ -6,3 +6,4 @@ pub mod guid;
 pub mod prefixes;
 pub mod special;
 pub mod suffixes;
+mod combatant;

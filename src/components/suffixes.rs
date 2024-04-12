@@ -7,7 +7,7 @@ use crate::utils::{parse_bool, parse_num};
 #[derive(Debug)]
 pub enum Suffix {
     Damage {
-        amount: u64,
+        amount: i64,
         base_amount: u64,
         overkill: Option<u64>,
         school: Option<Vec<SpellSchool>>,

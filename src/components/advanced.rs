@@ -59,7 +59,7 @@ pub struct AdvancedParams {
     pub current_hp: u64,
     pub max_hp: u64,
     pub attack_power: u64,
-    pub spell_power: u64,
+    pub spell_power: i64,
     pub armor: u64,
     pub absorb: u64,
     pub power_info: Vec<PowerInfo>,

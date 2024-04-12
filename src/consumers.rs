@@ -78,7 +78,7 @@ impl EventHandler for FileLogger {
 /// A simple damage tracker
 #[derive(Debug)]
 pub struct DamageTracker {
-    accumulated: HashMap<String, u64>,
+    accumulated: HashMap<String, i64>,
     start_time: Option<NaiveDateTime>,
     latest_time: Option<NaiveDateTime>,
 }
