@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, ensure, Result};
+use itertools::Itertools;
 use regex::Regex;
 
 use crate::components::guid::GUID;
@@ -102,7 +103,7 @@ trait PrimitiveParse<T> {
 impl PrimitiveParse<PVPTalents> for PVPTalents {
     fn parse(s: &str) -> Result<Self> {
         // s: "(a,b,c,d),"
-        let ids: PVPTalents = s[1..s.len() - 2]
+        let ids: Self = s[1..s.len() - 2]
             .split(',')
             .map(parse_num)
             .collect::<Result<Vec<u64>>>()?
@@ -117,9 +118,9 @@ impl PrimitiveParse<PVPTalents> for PVPTalents {
 
 #[derive(Debug)]
 pub struct ClassTalent {
-    id1: u64,
-    // todo: find out what these are
-    id2: u64,
+    // https://wago.tools/db2/TraitNodeXTraitNodeEntry
+    node_id: u64,
+    entry_id: u64,
     rank: u64,
 }
 
@@ -135,8 +136,8 @@ impl ClassTalent {
 
 
         Ok(Self {
-            id1: parsed[0],
-            id2: parsed[1],
+            node_id: parsed[0],
+            entry_id: parsed[1],
             rank: parsed[2],
         })
     }
@@ -152,6 +153,124 @@ impl ClassTalent {
 }
 
 #[derive(Debug)]
+pub struct Enchant {
+    permanent_id: u64,
+    temp_id: u64,
+    on_use_id: u64,
+}
+
+impl Enchant {
+    pub fn parse(s: &str) -> Result<Option<Self>> {
+        if s == "()," { return Ok(None); }
+
+        // s: "(a,b,c)"
+        let parts = s[1..s.len() - 2]
+            .split(',')
+            .collect::<Vec<_>>();
+
+        Ok(Some(Self {
+            permanent_id: parse_num(parts[0])?,
+            temp_id: parse_num(parts[1])?,
+            on_use_id: parse_num(parts[2])?,
+        }))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct EquippedItem {
+    item_id: u64,
+    ilvl: u64,
+    enchant: Option<Enchant>,
+    bonus_ids: Vec<u64>,
+    gem_ids: Vec<u64>,
+}
+
+impl EquippedItem {
+    fn parse(parts: Vec<&str>) -> Result<Option<Self>> {
+        ensure!(parts.len() == 5, "Not enough sections: expected 5, got: {}", parts.len());
+
+        if parts[0] == "0" { return Ok(None); };
+
+        let bonus_ids = if parts[3] == "()," {
+            vec![]
+        } else {
+            parts[3][1..parts[3].len() - 2]
+                .split(',')
+                .map(parse_num)
+                .collect::<Result<Vec<u64>>>()?
+        };
+
+        let gem_ids = if parts[4] == "()" {
+            vec![]
+        } else {
+            parts[4][1..parts[4].len() - 1]
+                .split(',')
+                .map(parse_num)
+                .collect::<Result<Vec<u64>>>()?
+        };
+
+        Ok(Some(Self {
+            item_id: parse_num(parts[0])?,
+            ilvl: parse_num(parts[1])?,
+            enchant: Enchant::parse(parts[2])?,
+            bonus_ids,
+            gem_ids,
+        }))
+    }
+
+    pub fn parse_vec(s: &str) -> Result<Vec<Self>> {
+        let re = Regex::new(r"(\d+),(\d+),(\(.*?\),?)(\(.*?\),?)(\(.*?\),?)").unwrap();
+
+        let items = re.captures_iter(s)
+            .map(|c| {
+                let parts = c.iter()
+                    .skip(1)
+                    .collect::<Option<Vec<_>>>()
+                    .with_context(|| format!("Failed to parse item: {:?}", c))?
+                    .iter().map(|m| m.as_str())
+                    .collect::<Vec<_>>();
+
+                Self::parse(parts)
+            })
+            .collect::<Result<Vec<_>>>()?
+            // Filter out empty slots
+            .into_iter().flatten()
+            .collect::<Vec<_>>();
+
+        Ok(items)
+    }
+}
+
+#[derive(Debug)]
+pub struct InterestingAura {
+    caster: Option<GUID>,
+    aura_id: u64,
+}
+
+impl InterestingAura {
+    fn parse(parts: &[&str]) -> Result<InterestingAura> {
+        ensure!(parts.len() == 2, "Not enough parts for InterstingAura: expected 2, got {}", parts.len());
+
+        Ok(Self {
+            caster: GUID::parse(parts[0])?,
+            aura_id: parse_num(parts[1])?,
+        })
+    }
+
+    pub fn parse_vec(s: &str) -> Result<Vec<Self>> {
+        // s: "[a1,a2,b1,b2,...],"
+        s[1..s.len() - 2]
+            .split(',')
+            .chunks(2)
+            .into_iter()
+            .map(|c| Self::parse(&c.collect::<Vec<_>>()))
+            .collect::<Result<Vec<_>>>()
+    }
+}
+
+
+#[derive(Debug)]
 pub struct CombatantInfo {
     guid: GUID,
     faction: Faction,
@@ -159,8 +278,8 @@ pub struct CombatantInfo {
     class_talents: Vec<ClassTalent>,
     pvp_talents: PVPTalents,
     // artifact_traits: todo!(),
-    // equipped_items: todo!(),
-    // interesting_auras: todo!(),
+    equipped_items: Vec<EquippedItem>,
+    interesting_auras: Vec<InterestingAura>,
     pvp_stats: PVPStats,
 }
 
@@ -172,6 +291,7 @@ impl CombatantInfo {
         let re = Regex::new(r"(\[.+?]),").unwrap();
         let (matches, line3) = match_replace_all(&re, &line2);
         ensure!(matches.len() == 3, "incorrect number of [...] sections found. Expected 3, found {}", matches.len());
+
 
         // Pull out remaining round brackets (pvp talents)
         let re = Regex::new(r"\([\d,?]+\),").unwrap();
@@ -188,6 +308,8 @@ impl CombatantInfo {
             stats: CharacterStats::parse(&line5[2..23])?,
             class_talents: ClassTalent::parse_vec(matches[0].as_str())?,
             pvp_talents: PVPTalents::parse(matches_pvp[0].as_str())?,
+            equipped_items: EquippedItem::parse_vec(matches[1].as_str())?,
+            interesting_auras: InterestingAura::parse_vec(matches[2].as_str())?,
             pvp_stats: PVPStats::parse(&line5[23..])?,
         })
     }
