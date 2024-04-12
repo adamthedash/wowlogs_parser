@@ -1,11 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use crate::components::combatant;
 use crate::components::common::Actor;
 use crate::components::guid::GUID;
 use crate::utils::{parse_bool, parse_num};
 
-use super::special::Special::{CombatantInfo, CombatLogInfo, EmoteEnvironmental, EmoteStandard, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
+use super::special::Special::{CombatantInfo, CombatLogInfo, EmoteEnvironmental, EmoteStandard, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, NoneSentinel, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
 
 #[derive(Debug)]
 pub enum Special {
@@ -98,6 +98,7 @@ pub enum Special {
         text: String,
     },
     CombatantInfo(combatant::CombatantInfo),
+    NoneSentinel,
 }
 
 impl Special {
@@ -203,10 +204,10 @@ impl Special {
                         text: line[4].to_string(),
                     }
                 }
-            },
+            }
             "COMBATANT_INFO" => CombatantInfo(combatant::CombatantInfo::parse(line)?),
 
-            _ => bail!("Unknown special event: {}", event_type)
+            _ => NoneSentinel
         };
 
         Ok(matched)

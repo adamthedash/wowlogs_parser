@@ -1,8 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Context, ensure, Result};
 use regex::Regex;
 
 use crate::components::guid::GUID;
-use crate::utils::parse_num;
+use crate::utils::{match_replace_all, parse_num};
 
 #[derive(Debug)]
 pub struct CharacterStats {
@@ -77,12 +77,53 @@ impl PVPStats {
 }
 
 #[derive(Debug)]
+pub enum Faction {
+    Horde,
+    Alliance,
+    // Neutral?
+}
+
+impl Faction {
+    pub fn parse(s: &str) -> Result<Self> {
+        match s {
+            "0" => Ok(Self::Horde),
+            "1" => Ok(Self::Alliance),
+            _ => bail!(format!("Failed to parse Faction: {:?}", s))
+        }
+    }
+}
+
+pub type PVPTalents = [u64; 4];
+
+trait PrimitiveParse<T> {
+    fn parse(s: &str) -> Result<T>;
+}
+
+impl PrimitiveParse<PVPTalents> for PVPTalents {
+    fn parse(s: &str) -> Result<Self> {
+        // s: "(a,b,c,d),"
+        let ids: PVPTalents = s[1..s.len() - 2]
+            .split(',')
+            .map(parse_num)
+            .collect::<Result<Vec<u64>>>()?
+            // Vec -> [u64]
+            .as_slice()
+            .try_into()
+            .with_context(|| format!("Incorrect number of ids: {}", s))?;
+
+        Ok(ids)
+    }
+}
+
+pub struct ClassTalents {}
+
+#[derive(Debug)]
 pub struct CombatantInfo {
     guid: GUID,
-    faction: u64,
+    faction: Faction,
     stats: CharacterStats,
     // class_talents: todo!(),
-    // pvp_talents: todo!(),
+    pvp_talents: PVPTalents,
     // artifact_traits: todo!(),
     // equipped_items: todo!(),
     // interesting_auras: todo!(),
@@ -91,19 +132,18 @@ pub struct CombatantInfo {
 
 impl CombatantInfo {
     pub fn parse(line: &[&str]) -> Result<Self> {
-        // Pull out square brackets
         let line2 = line.join(",");
-        let re = Regex::new(r"(\[.+?],)+").unwrap();
-        let matches = re.find_iter(&line2)
-            .map(|m| m.as_str()[..m.len() - 1].to_string())
-            .collect::<Vec<_>>();
 
-        let line3 = &*re.replace_all(line2.as_str(), "");
+        // Pull out square brackets (class talents, equipped items, interesting auras
+        let re = Regex::new(r"(\[.+?]),").unwrap();
+        let (matches, line3) = match_replace_all(&re, &line2);
+        ensure!(matches.len() == 3, "incorrect number of [...] sections found. Expected 3, found {}", matches.len());
 
-        // Pull out remaining round brackets
+        // Pull out remaining round brackets (pvp talents)
         let re = Regex::new(r"\([\d,?]+\),").unwrap();
-        let pvp_talents = re.find(&line3).unwrap().as_str();
-        let line4 = &*re.replace_all(line3, "");
+        let (matches, line4) = match_replace_all(&re, &line3);
+        ensure!(matches.len() == 1, "incorrect number of (...) sections found. Expected 1, found {}", matches.len());
+        let pvp_talents = matches[0].as_str();
 
         // Re-split todo: use csv to make sure we escape properly
         let line5 = line4.split(',').collect::<Vec<_>>();
@@ -111,8 +151,9 @@ impl CombatantInfo {
 
         Ok(Self {
             guid: GUID::parse(line5[0])?.unwrap(),
-            faction: parse_num(line5[1])?,
+            faction: Faction::parse(line5[1])?,
             stats: CharacterStats::parse(&line5[2..23])?,
+            pvp_talents: PVPTalents::parse(pvp_talents)?,
             pvp_stats: PVPStats::parse(&line5[23..])?,
         })
     }

@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
 use num_traits::Num;
+use regex::Regex;
 
 pub fn parse_num<T: FromStr>(x: &str) -> Result<T>
 {
@@ -23,4 +24,15 @@ pub fn parse_bool(x: &str) -> Result<bool> {
 pub fn parse_hex<T: FromStr + Num>(x: &str) -> Result<T> {
     T::from_str_radix(x.trim_start_matches("0x"), 16)
         .map_err(|_| anyhow!("Error parsing hex: {}", x))
+}
+
+/// Extracts and replaces the given regex, returning it
+pub fn match_replace_all(re: &Regex, s: &str) -> (Vec<String>, String) {
+    let matches = re.find_iter(s)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    let s = re.replace_all(s, "").to_string();
+
+    (matches, s)
 }
