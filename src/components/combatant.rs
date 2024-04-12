@@ -115,14 +115,48 @@ impl PrimitiveParse<PVPTalents> for PVPTalents {
     }
 }
 
-pub struct ClassTalents {}
+#[derive(Debug)]
+pub struct ClassTalent {
+    id1: u64,
+    // todo: find out what these are
+    id2: u64,
+    rank: u64,
+}
+
+impl ClassTalent {
+    fn parse(s: &str) -> Result<Self> {
+        // s: "(a,b,c)"
+        let parsed = s[1..s.len() - 1]
+            .split(',')
+            .map(parse_num)
+            .collect::<Result<Vec<_>>>()?;
+
+        ensure!(parsed.len() == 3, "incorrect numer of values, expected 3, got {}", parsed.len());
+
+
+        Ok(Self {
+            id1: parsed[0],
+            id2: parsed[1],
+            rank: parsed[2],
+        })
+    }
+
+    pub fn parse_vec(s: &str) -> Result<Vec<Self>> {
+        // s: "[(a,b,c),...]"
+        let re = Regex::new(r"\(((?:\d+,?)+)\)")?;
+
+        re.find_iter(s)
+            .map(|m| Self::parse(m.as_str()))
+            .collect::<Result<Vec<_>>>()
+    }
+}
 
 #[derive(Debug)]
 pub struct CombatantInfo {
     guid: GUID,
     faction: Faction,
     stats: CharacterStats,
-    // class_talents: todo!(),
+    class_talents: Vec<ClassTalent>,
     pvp_talents: PVPTalents,
     // artifact_traits: todo!(),
     // equipped_items: todo!(),
@@ -141,9 +175,8 @@ impl CombatantInfo {
 
         // Pull out remaining round brackets (pvp talents)
         let re = Regex::new(r"\([\d,?]+\),").unwrap();
-        let (matches, line4) = match_replace_all(&re, &line3);
-        ensure!(matches.len() == 1, "incorrect number of (...) sections found. Expected 1, found {}", matches.len());
-        let pvp_talents = matches[0].as_str();
+        let (matches_pvp, line4) = match_replace_all(&re, &line3);
+        ensure!(matches_pvp.len() == 1, "incorrect number of (...) sections found. Expected 1, found {}", matches_pvp.len());
 
         // Re-split todo: use csv to make sure we escape properly
         let line5 = line4.split(',').collect::<Vec<_>>();
@@ -153,7 +186,8 @@ impl CombatantInfo {
             guid: GUID::parse(line5[0])?.unwrap(),
             faction: Faction::parse(line5[1])?,
             stats: CharacterStats::parse(&line5[2..23])?,
-            pvp_talents: PVPTalents::parse(pvp_talents)?,
+            class_talents: ClassTalent::parse_vec(matches[0].as_str())?,
+            pvp_talents: PVPTalents::parse(matches_pvp[0].as_str())?,
             pvp_stats: PVPStats::parse(&line5[23..])?,
         })
     }
