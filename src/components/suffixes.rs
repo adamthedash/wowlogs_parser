@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::components::common::{Actor, SpellInfo};
 use crate::components::enums::{AuraType, MissType, PowerType, SpellSchool};
+use crate::components::guid::GUID;
 use crate::utils::{parse_bool, parse_num};
 
 #[derive(Debug)]
@@ -56,6 +57,14 @@ pub enum Suffix {
         absorbed_amount: i64,
         base_amount: u64,
         critical: bool,
+    },
+    AbsorbedSupport {
+        absorb_caster: Actor,
+        absorb_spell_info: SpellInfo,
+        absorbed_amount: i64,
+        base_amount: u64,
+        critical: bool,
+        caster: GUID,
     },
     Energize {
         amount: f32,
@@ -119,6 +128,40 @@ pub enum Suffix {
     EmpowerStart,
     EmpowerEnd { empowered_rank: u64 },
     EmpowerInterrupt { empowered_rank: u64 },
+    DamageSupport {
+        amount: i64,
+        base_amount: u64,
+        overkill: Option<u64>,
+        school: Option<Vec<SpellSchool>>,
+        resisted: u64,
+        blocked: u64,
+        absorbed: i64,
+        critical: bool,
+        glancing: bool,
+        crushing: bool,
+        caster: GUID,
+    },
+    DamageLandedSupport {
+        amount: u64,
+        base_amount: u64,
+        overkill: Option<u64>,
+        school: Option<Vec<SpellSchool>>,
+        resisted: u64,
+        blocked: u64,
+        absorbed: u64,
+        critical: bool,
+        glancing: bool,
+        crushing: bool,
+        caster: GUID,
+    },
+    HealSupport {
+        amount: u64,
+        base_amount: u64,
+        overhealing: u64,
+        absorbed: u64,
+        critical: bool,
+        caster: GUID,
+    },
 }
 
 impl Suffix {
@@ -139,6 +182,23 @@ impl Suffix {
                 glancing: parse_bool(line[8])?,
                 crushing: parse_bool(line[9])?,
             },
+            x if x.ends_with("DAMAGE_SUPPORT") => Self::DamageSupport {
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
+                overkill: match line[2] {
+                    "-1" => None,
+                    x => Some(parse_num(x)?)
+                },
+                school: SpellSchool::parse(line[3])?,
+                resisted: parse_num(line[4])?,
+                blocked: parse_num(line[5])?,
+                absorbed: parse_num(line[6])?,
+                critical: parse_bool(line[7])?,
+                glancing: parse_bool(line[8])?,
+                crushing: parse_bool(line[9])?,
+                caster: GUID::parse(line[10])?
+                    .with_context(|| "Support caster GUID cannot be none")?,
+            },
 
             x if x.ends_with("DAMAGE_LANDED") => Self::DamageLanded {
                 amount: parse_num(line[0])?,
@@ -154,6 +214,23 @@ impl Suffix {
                 critical: parse_bool(line[7])?,
                 glancing: parse_bool(line[8])?,
                 crushing: parse_bool(line[9])?,
+            },
+            x if x.ends_with("DAMAGE_LANDED_SUPPORT") => Self::DamageLandedSupport {
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
+                overkill: match line[2] {
+                    "-1" => None,
+                    x => Some(parse_num(x)?)
+                },
+                school: SpellSchool::parse(line[3])?,
+                resisted: parse_num(line[4])?,
+                blocked: parse_num(line[5])?,
+                absorbed: parse_num(line[6])?,
+                critical: parse_bool(line[7])?,
+                glancing: parse_bool(line[8])?,
+                crushing: parse_bool(line[9])?,
+                caster: GUID::parse(line[10])?
+                    .with_context(|| "Support caster GUID cannot be none")?,
             },
 
             x if x.ends_with("MISSED") => {
@@ -184,6 +261,15 @@ impl Suffix {
                 absorbed: parse_num(line[3])?,
                 critical: parse_bool(line[4])?,
             },
+            x if x.ends_with("HEAL_SUPPORT") => Self::HealSupport {
+                amount: parse_num(line[0])?,
+                base_amount: parse_num(line[1])?,
+                overhealing: parse_num(line[2])?,
+                absorbed: parse_num(line[3])?,
+                critical: parse_bool(line[4])?,
+                caster: GUID::parse(line[5])?
+                    .with_context(|| "Support caster GUID cannot be none")?,
+            },
 
             x if x.ends_with("HEAL_ABSORBED") => Self::HealAbsorbed {
                 actor: Actor::parse(&line[..4])?,
@@ -198,6 +284,15 @@ impl Suffix {
                 absorbed_amount: parse_num(line[7])?,
                 base_amount: parse_num(line[8])?,
                 critical: parse_bool(line[9])?,
+            },
+            x if x.ends_with("ABSORBED_SUPPORT") => Self::AbsorbedSupport {
+                absorb_caster: Actor::parse(&line[..4])?.unwrap(),
+                absorb_spell_info: SpellInfo::parse(&line[4..7])?,
+                absorbed_amount: parse_num(line[7])?,
+                base_amount: parse_num(line[8])?,
+                critical: parse_bool(line[9])?,
+                caster: GUID::parse(line[10])?
+                    .with_context(|| "Support caster GUID cannot be none")?,
             },
 
             x if x.ends_with("ENERGIZE") => Self::Energize {
@@ -330,6 +425,9 @@ impl Suffix {
             "DAMAGE",
             "DAMAGE_LANDED",
             "HEAL",
+            "DAMAGE_SUPPORT",
+            "DAMAGE_LANDED_SUPPORT",
+            "HEAL_SUPPORT",
             "CAST_SUCCESS",
             "ENERGIZE",
             "DRAIN",
@@ -343,6 +441,7 @@ impl Suffix {
             "MISSED",
             "HEAL_ABSORBED",
             "ABSORBED",
+            "ABSORBED_SUPPORT",
             "EMPOWER_INTERRUPT",
             "INTERRUPT",
             "DISPEL_FAILED",
