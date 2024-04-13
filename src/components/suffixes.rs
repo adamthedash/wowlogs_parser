@@ -130,7 +130,7 @@ pub enum Suffix {
     EmpowerInterrupt { empowered_rank: u64 },
     DamageSupport {
         amount: i64,
-        base_amount: u64,
+        base_amount: i64,
         overkill: Option<u64>,
         school: Option<Vec<SpellSchool>>,
         resisted: u64,

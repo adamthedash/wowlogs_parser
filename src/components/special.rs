@@ -5,8 +5,6 @@ use crate::components::common::Actor;
 use crate::components::guid::GUID;
 use crate::utils::{parse_bool, parse_num};
 
-use super::special::Special::{CombatantInfo, CombatLogInfo, EmoteEnvironmental, EmoteStandard, EnchantApplied, EnchantRemoved, EncounterEnd, EncounterStart, MapChange, NoneSentinel, PartyKill, UnitDestroyed, UnitDied, UnitDissipates, WorldMarkerPlaced, WorldMarkerRemoved, ZoneChange};
-
 #[derive(Debug)]
 pub enum Special {
     EnchantApplied {
@@ -98,13 +96,26 @@ pub enum Special {
         text: String,
     },
     CombatantInfo(combatant::CombatantInfo),
+    ChallengeModeStart {
+        zone_name: String,
+        instance_id: u64,
+        challenge_mode_id: u64,
+        keystone_level: u64,
+        affix_ids: Vec<u64>,
+    },
+    ChallengeModeEnd {
+        instance_id: u64,
+        success: bool,
+        keystone_level: u64,
+        total_time: u64,
+    },
     NoneSentinel,
 }
 
 impl Special {
     pub fn parse(event_type: &str, line: &[&str]) -> Result<Self> {
         let matched = match event_type {
-            "ENCHANT_APPLIED" => EnchantApplied {
+            "ENCHANT_APPLIED" => Self::EnchantApplied {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 spell_name: line[8].to_string(),
@@ -112,7 +123,7 @@ impl Special {
                 item_name: line[10].to_string(),
             },
 
-            "ENCHANT_REMOVED" => EnchantRemoved {
+            "ENCHANT_REMOVED" => Self::EnchantRemoved {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 spell_name: line[8].to_string(),
@@ -120,44 +131,44 @@ impl Special {
                 item_name: line[10].to_string(),
             },
 
-            "PARTY_KILL" => PartyKill {
+            "PARTY_KILL" => Self::PartyKill {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 unconscious_on_death: parse_bool(line[8])?,
             },
 
-            "UNIT_DIED" => UnitDied {
+            "UNIT_DIED" => Self::UnitDied {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 unconscious_on_death: parse_bool(line[8])?,
             },
 
-            "UNIT_DESTROYED" => UnitDestroyed {
+            "UNIT_DESTROYED" => Self::UnitDestroyed {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 unconscious_on_death: parse_bool(line[8])?,
             },
 
-            "UNIT_DISSIPATES" => UnitDissipates {
+            "UNIT_DISSIPATES" => Self::UnitDissipates {
                 source: Actor::parse(&line[0..4])?,
                 target: Actor::parse(&line[4..8])?,
                 unconscious_on_death: parse_bool(line[8])?,
             },
 
-            "COMBAT_LOG_VERSION" => CombatLogInfo {
+            "COMBAT_LOG_VERSION" => Self::CombatLogInfo {
                 log_version: parse_num(line[0])?,
                 advanced_log_enabled: parse_bool(line[2])?,
                 build_version: line[4].to_string(),
                 project_id: parse_num(line[6])?,
             },
 
-            "ZONE_CHANGE" => ZoneChange {
+            "ZONE_CHANGE" => Self::ZoneChange {
                 instance_id: parse_num(line[0])?,
                 zone_name: line[1].to_string(),
                 id: parse_num(line[2])?,
             },
 
-            "MAP_CHANGE" => MapChange {
+            "MAP_CHANGE" => Self::MapChange {
                 ui_map_id: parse_num(line[0])?,
                 ui_map_name: line[1].to_string(),
                 x0: parse_num(line[2])?,
@@ -166,14 +177,14 @@ impl Special {
                 y1: parse_num(line[5])?,
             },
 
-            "ENCOUNTER_START" => EncounterStart {
+            "ENCOUNTER_START" => Self::EncounterStart {
                 encounter_id: parse_num(line[0])?,
                 encounter_name: line[1].to_string(),
                 difficulty_id: parse_num(line[2])?,
                 group_size: parse_num(line[3])?,
                 instance_id: parse_num(line[4])?,
             },
-            "ENCOUNTER_END" => EncounterEnd {
+            "ENCOUNTER_END" => Self::EncounterEnd {
                 encounter_id: parse_num(line[0])?,
                 encounter_name: line[1].to_string(),
                 difficulty_id: parse_num(line[2])?,
@@ -181,33 +192,53 @@ impl Special {
                 success: parse_bool(line[4])?,
                 fight_time: parse_num(line[5])?,
             },
-            "WORLD_MARKER_PLACED" => WorldMarkerPlaced {
+            "WORLD_MARKER_PLACED" => Self::WorldMarkerPlaced {
                 instance_id: parse_num(line[0])?,
                 marker: parse_num(line[1])?,
                 x: parse_num(line[2])?,
                 y: parse_num(line[3])?,
             },
-            "WORLD_MARKER_REMOVED" => WorldMarkerRemoved {
+            "WORLD_MARKER_REMOVED" => Self::WorldMarkerRemoved {
                 marker: parse_num(line[0])?,
             },
             "EMOTE" => {
                 match GUID::parse(line[2]) {
-                    Ok(g) => EmoteEnvironmental {
+                    Ok(g) => Self::EmoteEnvironmental {
                         source_guid: GUID::parse(line[0])?,
                         source_name: line[1].to_string(),
                         target_guid: g,
                         target_name: line[3].to_string(),
                         text: line[4].to_string(),
                     },
-                    Err(_) => EmoteStandard {
+                    Err(_) => Self::EmoteStandard {
                         actor: Actor::parse(&line[..4])?,
                         text: line[4].to_string(),
                     }
                 }
             }
-            "COMBATANT_INFO" => CombatantInfo(combatant::CombatantInfo::parse(line)?),
+            "COMBATANT_INFO" => Self::CombatantInfo(combatant::CombatantInfo::parse(line)?),
+            "CHALLENGE_MODE_START" => Self::ChallengeModeStart {
+                zone_name: line[0].to_string(),
+                instance_id: parse_num(line[1])?,
+                challenge_mode_id: parse_num(line[2])?,
+                keystone_level: parse_num(line[3])?,
+                affix_ids: {
+                    let joined = line[4..].join(",");
 
-            _ => NoneSentinel
+                    joined[1..joined.len() - 1]
+                        .split(',')
+                        .map(parse_num)
+                        .collect::<Result<Vec<u64>>>()?
+                },
+            },
+            "CHALLENGE_MODE_END" => Self::ChallengeModeEnd {
+                instance_id: parse_num(line[0])?,
+                success: parse_bool(line[1])?,
+                keystone_level: parse_num(line[2])?,
+                total_time: parse_num(line[3])?,
+            },
+
+            _ => Self::NoneSentinel
         };
 
         Ok(matched)

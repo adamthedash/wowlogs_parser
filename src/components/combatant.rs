@@ -259,6 +259,8 @@ impl InterestingAura {
     }
 
     pub fn parse_vec(s: &str) -> Result<Vec<Self>> {
+        if s == "[]," { return Ok(vec![]); }
+
         // s: "[a1,a2,b1,b2,...],"
         s[1..s.len() - 2]
             .split(',')
@@ -288,7 +290,7 @@ impl CombatantInfo {
         let line2 = line.join(",");
 
         // Pull out square brackets (class talents, equipped items, interesting auras
-        let re = Regex::new(r"(\[.+?]),").unwrap();
+        let re = Regex::new(r"(\[.*?]),").unwrap();
         let (matches, line3) = match_replace_all(&re, &line2);
         ensure!(matches.len() == 3, "incorrect number of [...] sections found. Expected 3, found {}", matches.len());
 
