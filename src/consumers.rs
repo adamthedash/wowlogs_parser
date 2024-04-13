@@ -63,7 +63,7 @@ impl EventHandler for FileLogger {
         match event {
             Ok(x) => {
                 let _ = self.good_file.write(format!("{:?}\n", x).as_bytes());
-            },
+            }
             Err(x) => {
                 let _ = self.bad_file.write(format!("{:?}\n", x).as_bytes());
             }
@@ -142,4 +142,13 @@ impl EventHandler for DamageTracker {
 
         Some(format!("8=================D~~~~~{:~>0}~{:~>10}~{:~>10}~{:~>10}\n{}", "Player", "Damage", "DPS", "Parse", s))
     }
+}
+
+/// Does nothing
+pub struct NulLogger;
+
+impl EventHandler for NulLogger {
+    fn handle(&mut self, _event: &Result<Event>) {}
+
+    fn display(&self) -> Option<String> { None }
 }

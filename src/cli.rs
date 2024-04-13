@@ -31,13 +31,15 @@ pub enum OutputMode {
     Std,
 
     /// Write to a file
-    ///
     File {
         /// File to write correctly parsed events to
         good_path: PathBuf,
         /// File to write incorrectly parsed events to
         failed_path: PathBuf,
     },
+
+    /// Do nothing
+    None,
 }
 
 

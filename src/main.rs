@@ -9,7 +9,7 @@ use itertools::Itertools;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::cli::{Cli, OutputMode, ReadMode};
-use crate::consumers::{DamageTracker, EventHandler, FileLogger, StdLogger};
+use crate::consumers::{DamageTracker, EventHandler, FileLogger, NulLogger, StdLogger};
 use crate::parser::EventParser;
 
 mod traits;
@@ -93,7 +93,8 @@ fn execute(args: Cli) {
     handlers.push(match args.output_mode {
         OutputMode::Std => Box::new(StdLogger::new()),
         OutputMode::File { good_path, failed_path } =>
-            Box::new(FileLogger::new(&good_path, &failed_path).unwrap())
+            Box::new(FileLogger::new(&good_path, &failed_path).unwrap()),
+        OutputMode::None => Box::new(NulLogger)
     });
 
     // Inputs
