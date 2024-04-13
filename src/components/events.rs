@@ -71,7 +71,7 @@ impl EventType {
             let to_consume = match event_type {
                 // Special case: ABSORB may or may not contain spell info
                 // we have no way to tell without attempting to parse and catching fails
-                e if e == "SPELL_ABSORBED"
+                e if e == "SPELL_ABSORBED" || e == "SPELL_ABSORBED_SUPPORT"
                     && u64::from_str(line[8]).is_err() => 0,
                 _ => Prefix::entries_to_consume(event_type)?
             };
