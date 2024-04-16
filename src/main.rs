@@ -182,5 +182,12 @@ mod tests {
         println!("{:?}", args);
         execute(args);
     }
+
+    #[test]
+    fn test_real_null() {
+        let args = Cli::parse_from(["wow.exe", r"test_data\WoWCombatLog-041124_213746.txt", "process", "none"]);
+        println!("{:?}", args);
+        execute(args);
+    }
 }
 
